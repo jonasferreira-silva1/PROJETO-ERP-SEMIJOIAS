@@ -1,0 +1,44 @@
+# Dependências do Node (API e App Mobile)
+node_modules/
+
+# Pastas de Build e Distribuição
+dist/
+build/
+out/
+.next/
+.expo/
+
+# Variáveis de Ambiente e Segredos (NUNCA enviar ao GitHub!)
+.env
+.env.local
+.env.*.local
+.env.development
+.env.production
+
+# Logs de Erros e Execução
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Configurações locais de IDEs e Sistemas Operacionais
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+
+# Banco de dados e arquivos locais do Prisma
+prisma/dev.db
+prisma/dev.db-journal
+
+# Arquivos gerados por empacotamento mobile (Android/iOS)
+*.apk
+*.aab
+*.ipa
+*.keystore
+*.jks
+*.p8

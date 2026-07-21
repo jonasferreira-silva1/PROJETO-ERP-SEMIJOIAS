@@ -1,0 +1,100 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum Role {
+  DONO
+  FUNCIONARIA
+}
+
+model Loja {
+  id        Int       @id @default(autoincrement())
+  nome      String
+  cnpj      String?
+  plano     String?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  
+  filiais   Filial[]
+  usuarios  Usuario[]
+  produtos  Produto[]
+}
+
+model Filial {
+  id        Int       @id @default(autoincrement())
+  lojaId    Int
+  loja      Loja      @relation(fields: [lojaId], references: [id], onDelete: Cascade)
+  nome      String
+  endereco  String?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  usuarios  Usuario[]
+  vendas    Venda[]
+}
+
+model Usuario {
+  id        Int       @id @default(autoincrement())
+  lojaId    Int
+  loja      Loja      @relation(fields: [lojaId], references: [id], onDelete: Cascade)
+  filialId  Int
+  filial    Filial    @relation(fields: [filialId], references: [id], onDelete: Cascade)
+  nome      String
+  email     String    @unique
+  senhaHash String
+  role      Role
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  vendas    Venda[]
+}
+
+model Produto {
+  id         Int         @id @default(autoincrement())
+  lojaId     Int
+  loja       Loja        @relation(fields: [lojaId], references: [id], onDelete: Cascade)
+  nome       String
+  categoria  String
+  preco      Float
+  estoque    Int
+  createdAt  DateTime    @default(now())
+  updatedAt  DateTime    @updatedAt
+
+  itensVenda ItemVenda[]
+}
+
+model Venda {
+  id             Int         @id @default(autoincrement())
+  filialId       Int
+  filial         Filial      @relation(fields: [filialId], references: [id], onDelete: Cascade)
+  usuarioId      Int
+  usuario        Usuario     @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+  dataHora       DateTime    @default(now())
+  valorTotal     Float
+  formaPagamento String
+  cliente        String?
+  observacao     String?
+  createdAt      DateTime    @default(now())
+  updatedAt      DateTime    @updatedAt
+
+  itens          ItemVenda[]
+}
+
+model ItemVenda {
+  id            Int      @id @default(autoincrement())
+  vendaId       Int
+  venda         Venda    @relation(fields: [vendaId], references: [id], onDelete: Cascade)
+  produtoId     Int
+  produto       Produto  @relation(fields: [produtoId], references: [id])
+  quantidade    Int
+  valorUnitario Float
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+}
