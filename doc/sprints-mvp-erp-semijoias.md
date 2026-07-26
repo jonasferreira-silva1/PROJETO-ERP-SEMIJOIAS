@@ -12,19 +12,19 @@ Referência: este plano segue a Seção 8 da documentação mestre do projeto ([
 **Objetivo:** Ter a base do backend rodando localmente, com banco modelado e autenticação JWT funcional.
 
 ### Tarefas
-- [ ] Criar repositórios no GitHub (`erp-semijoias-api` e `erp-semijoias-app`, ou monorepo).
-- [ ] Inicializar o projeto com NestJS.
-- [ ] Configurar o ambiente com Docker Compose executando PostgreSQL.
-- [ ] Modelar o schema Prisma com as entidades: `Loja`, `Filial`, `Usuario`, `Produto`, `Venda` e `ItemVenda`.
-- [ ] Criar e executar a migration inicial do banco de dados.
-- [ ] Desenvolver o módulo de autenticação (JWT): endpoint de login, criptografia de senha (hash) e guards baseados em `role`.
-- [ ] Criar seed de banco de dados para desenvolvimento: uma Loja, uma Filial (Matriz), um usuário Dono e um Funcionária para testes.
+- [x] Criar repositórios no GitHub (`erp-semijoias-api` e `erp-semijoias-app`, ou monorepo).
+- [x] Inicializar o projeto com NestJS.
+- [x] Configurar o ambiente com Docker Compose executando PostgreSQL.
+- [x] Modelar o schema Prisma com as entidades: `Loja`, `Filial`, `Usuario`, `Produto`, `Venda` e `ItemVenda`.
+- [x] Criar e executar a migration inicial do banco de dados.
+- [x] Desenvolver o módulo de autenticação (JWT): endpoint de login, criptografia de senha (hash) e guards baseados em `role`.
+- [x] Criar seed de banco de dados para desenvolvimento: uma Loja, uma Filial (Matriz), um usuário Dono e um Funcionária para testes.
 
 ### Critérios de Aceitação
-- [ ] A execução do comando `docker compose up` inicia a API e o banco de dados PostgreSQL sem falhas.
-- [ ] O endpoint `POST /auth/login` retorna um token JWT válido tanto para credenciais de Dono quanto de Funcionária.
-- [ ] Endpoints protegidos por autenticação retornam status `401 Unauthorized` na ausência do token e `200 OK` com token válido.
-- [ ] Roteamento restrito com Role-Based Access Control (RBAC): rotas exclusivas do Dono retornam `403 Forbidden` ao serem acessadas com token de Funcionária.
+- [x] A execução do comando `docker compose up` inicia a API e o banco de dados PostgreSQL sem falhas.
+- [x] O endpoint `POST /auth/login` retorna um token JWT válido tanto para credenciais de Dono quanto de Funcionária.
+- [x] Endpoints protegidos por autenticação retornam status `401 Unauthorized` na ausência do token e `200 OK` com token válido.
+- [x] Roteamento restrito com Role-Based Access Control (RBAC): rotas exclusivas do Dono retornam `403 Forbidden` ao serem acessadas com token de Funcionária.
 
 ### Commits Sugeridos
 ```bash
@@ -41,17 +41,17 @@ chore: seed inicial de dados para ambiente de desenvolvimento
 **Objetivo:** Autenticar o usuário no aplicativo mobile e direcioná-lo para a área de navegação exclusiva de sua respectiva `role`.
 
 ### Tarefas
-- [ ] Inicializar o projeto mobile utilizando Expo, NativeWind para estilização e React Navigation.
-- [ ] Desenvolver a tela de login (e-mail/senha) integrada à API do backend.
-- [ ] Configurar armazenamento seguro do token JWT através do `Expo SecureStore`.
-- [ ] Configurar o cliente TanStack Query com interceptor para injetar o token JWT nos cabeçalhos HTTP.
-- [ ] Criar e gerenciar duas stacks de navegação: `FuncionariaStack` e `DonaStack`, selecionadas de forma dinâmica pós-login com base na claim do JWT.
+- [x] Inicializar o projeto mobile utilizando Expo, NativeWind para estilização e React Navigation.
+- [x] Desenvolver a tela de login (e-mail/senha) integrada à API do backend.
+- [x] Configurar armazenamento seguro do token JWT através do `Expo SecureStore`.
+- [x] Configurar o cliente TanStack Query com interceptor para injetar o token JWT nos cabeçalhos HTTP.
+- [x] Criar e gerenciar duas stacks de navegação: `FuncionariaStack` e `DonaStack`, selecionadas de forma dinâmica pós-login com base na claim do JWT.
 
 ### Critérios de Aceitação
-- [ ] O login com perfil de Dono redireciona e exibe a interface exclusiva da Dona (`DonaStack`).
-- [ ] O login com perfil de Funcionária redireciona e exibe a interface exclusiva da Funcionária (`FuncionariaStack`).
-- [ ] Fechar e reabrir o app mantém o usuário logado (persistência de sessão segura).
-- [ ] A ação de logout descarta as credenciais locais com segurança e retorna o fluxo à tela de login.
+- [x] O login com perfil de Dono redireciona e exibe a interface exclusiva da Dona (`DonaStack`).
+- [x] O login com perfil de Funcionária redireciona e exibe a interface exclusiva da Funcionária (`FuncionariaStack`).
+- [x] Fechar e reabrir o app mantém o usuário logado (persistência de sessão segura).
+- [x] A ação de logout descarta as credenciais locais com segurança e retorna o fluxo à tela de login.
 
 ### Commits Sugeridos
 ```bash

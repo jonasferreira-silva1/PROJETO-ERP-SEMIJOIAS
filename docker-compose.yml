@@ -1,0 +1,46 @@
+version: '3.8'
+
+services:
+  db:
+    image: postgres:15-alpine
+    container_name: adorne-postgres
+    restart: always
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: adorne_erp
+    ports:
+      - '5433:5432' # Permite acesso local ao banco na porta 5433
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+  backend:
+    build:
+      context: ./api
+      dockerfile: Dockerfile
+    container_name: adorne-backend
+    restart: always
+    ports:
+      - '3000:3000'
+    environment:
+      DATABASE_URL: 'postgresql://postgres:postgres@db:5432/adorne_erp?schema=public'
+      JWT_SECRET: 'super-secret-key-adorne-semijoias'
+      JWT_EXPIRATION: '7d'
+    depends_on:
+      - db
+    # Aplica as migrações e popula as tabelas (seed) antes de rodar a API
+    command: sh -c "npx prisma migrate deploy && npx prisma db seed && node dist/src/main"
+
+  frontend:
+    build:
+      context: ./app
+      dockerfile: Dockerfile
+    container_name: adorne-frontend
+    restart: always
+    ports:
+      - '8081:8081' # Expõe o servidor Web do Expo
+    depends_on:
+      - backend
+
+volumes:
+  postgres_data:
