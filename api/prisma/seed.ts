@@ -17,6 +17,7 @@ async function main() {
   await prisma.itemVenda.deleteMany({});
   await prisma.venda.deleteMany({});
   await prisma.cliente.deleteMany({});
+  await prisma.pushToken.deleteMany({});
   await prisma.produto.deleteMany({});
   await prisma.usuario.deleteMany({});
   await prisma.filial.deleteMany({});

@@ -1,14 +1,18 @@
-import { Controller, Get, Request, UseGuards } from '@nestjs/common';
+import { Controller, Get, Post, Body, Request, UseGuards } from '@nestjs/common';
 import { AppService } from './app.service';
 import { JwtAuthGuard } from './auth/guards/jwt-auth.guard';
 import { RolesGuard } from './auth/guards/roles.guard';
 import { Roles } from './auth/decorators/roles.decorator';
 import { Role } from '@prisma/client';
+import { PrismaService } from './prisma.service';
 
 // Controller geral com rotas de testes para validar nossa autenticação e autorização
 @Controller()
 export class AppController {
-  constructor(private readonly appService: AppService) {}
+  constructor(
+    private readonly appService: AppService,
+    private readonly prisma: PrismaService,
+  ) {}
 
   // Rota pública simples de boas-vindas
   @Get()
@@ -22,6 +26,28 @@ export class AppController {
   @Get('perfil')
   getPerfil(@Request() req: any) {
     return req.user;
+  }
+
+  // Endpoint POST /perfil/push-token
+  // Registra um novo token de push notification nativa para o usuário logado
+  @UseGuards(JwtAuthGuard)
+  @Post('perfil/push-token')
+  async registerPushToken(@Body('token') token: string, @Request() req: any) {
+    if (!token) {
+      return { success: false, message: 'Token não fornecido' };
+    }
+
+    // Associa o token ao usuário de forma resiliente
+    await this.prisma.pushToken.upsert({
+      where: { token },
+      update: { usuarioId: req.user.id },
+      create: {
+        token,
+        usuarioId: req.user.id,
+      },
+    });
+
+    return { success: true };
   }
 
   // Rota restrita. Exige token JWT e cargo (role) de DONO

@@ -43,19 +43,30 @@ model Filial {
 }
 
 model Usuario {
-  id        Int       @id @default(autoincrement())
+  id        Int         @id @default(autoincrement())
   lojaId    Int
-  loja      Loja      @relation(fields: [lojaId], references: [id], onDelete: Cascade)
+  loja      Loja        @relation(fields: [lojaId], references: [id], onDelete: Cascade)
   filialId  Int
-  filial    Filial    @relation(fields: [filialId], references: [id], onDelete: Cascade)
+  filial    Filial      @relation(fields: [filialId], references: [id], onDelete: Cascade)
   nome      String
-  email     String    @unique
+  email     String      @unique
   senhaHash String
   role      Role
-  createdAt DateTime  @default(now())
-  updatedAt DateTime  @updatedAt
+  createdAt DateTime    @default(now())
+  updatedAt DateTime    @updatedAt
 
-  vendas    Venda[]
+  vendas     Venda[]
+  pushTokens PushToken[]
+}
+
+model PushToken {
+  id        Int      @id @default(autoincrement())
+  usuarioId Int
+  usuario   Usuario  @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+  token     String   @unique
+  createdAt DateTime @default(now())
+
+  @@index([usuarioId])
 }
 
 model Produto {

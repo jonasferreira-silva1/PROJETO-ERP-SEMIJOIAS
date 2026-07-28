@@ -2,10 +2,14 @@ import { Injectable, BadRequestException, NotFoundException } from '@nestjs/comm
 import { PrismaService } from '../prisma.service';
 import { CreateVendaDto } from './dto/create-venda.dto';
 import { Prisma, Produto } from '@prisma/client';
+import { VendasGateway } from './vendas.gateway';
 
 @Injectable()
 export class VendasService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private vendasGateway: VendasGateway,
+  ) {}
 
   // Cria uma nova venda aplicando validação de idempotência, trava de estoque e CRM
   async create(createVendaDto: CreateVendaDto, user: any) {
@@ -34,7 +38,7 @@ export class VendasService {
     }
 
     // 2. Transação atômica do Prisma
-    return this.prisma.$transaction(async (tx) => {
+    const novaVenda = await this.prisma.$transaction(async (tx) => {
       
       // A. Resolução de CRM - Cliente
       let clienteId: number | null = null;
@@ -180,25 +184,124 @@ export class VendasService {
 
       return novaVenda;
     });
+
+    // 3. Emissão do evento de tempo real no WebSocket (Multi-Tenant)
+    this.vendasGateway.emitNewVenda(user.lojaId, novaVenda);
+
+    // 4. Envio de notificações push para dispositivos em background
+    this.sendPushNotifications(user.lojaId, novaVenda, user.nome).catch((err) => {
+      console.log('[Push] Erro em background ao processar notificações:', err.message);
+    });
+
+    return novaVenda;
   }
 
-  // Busca o histórico de vendas efetuadas pelo usuário logado (funcionária)
-  async findHistorico(usuarioId: number) {
-    return this.prisma.venda.findMany({
-      where: {
-        usuarioId,
-      },
-      include: {
-        itens: {
-          include: {
-            produto: true,
+  // Método assíncrono para despachar notificações push via Expo
+  private async sendPushNotifications(lojaId: number, venda: any, vendedorNome: string) {
+    try {
+      // Busca todos os donos da loja com algum push token registrado
+      const donos = await this.prisma.usuario.findMany({
+        where: {
+          lojaId,
+          role: 'DONO',
+          pushTokens: {
+            some: {},
           },
         },
-        cliente: true,
-      },
-      orderBy: {
-        createdAt: 'desc',
-      },
-    });
+        include: {
+          pushTokens: true,
+        },
+      });
+
+      const tokens = donos.flatMap((d) => d.pushTokens.map((t) => t.token));
+
+      if (tokens.length === 0) return;
+
+      const itensDesc = venda.itens.map((it: any) => `${it.quantidade}x ${it.produto.nome}`).join(', ');
+      const totalFormatado = `R$ ${venda.valorTotal.toFixed(2).replace('.', ',')}`;
+
+      const messages = tokens.map((token) => ({
+        to: token,
+        sound: 'default',
+        title: 'Nova Venda Registrada! 💍',
+        body: `${vendedorNome} vendeu: ${itensDesc}. Total: ${totalFormatado}`,
+        data: { vendaId: venda.id },
+      }));
+
+      const response = await fetch('https://exp.host/--/api/v2/push/send', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Accept: 'application/json',
+        },
+        body: JSON.stringify(messages),
+      });
+
+      const result = await response.json();
+
+      // Varre os recibos de entrega para remover tokens que expiraram ou foram deletados (DeviceNotRegistered)
+      if (result && result.data && Array.isArray(result.data)) {
+        for (let i = 0; i < result.data.length; i++) {
+          const receipt = result.data[i];
+          const token = tokens[i];
+
+          if (
+            receipt.status === 'error' || 
+            (receipt.details && receipt.details.error === 'DeviceNotRegistered')
+          ) {
+            console.log(`[Push] Token inválido/morto detectado (${token}). Removendo do banco...`);
+            await this.prisma.pushToken.delete({
+              where: { token },
+            }).catch((err) => {
+              console.log('[Push] Erro ao deletar token morto:', err.message);
+            });
+          }
+        }
+      }
+    } catch (error) {
+      console.error('[Push] Falha ao enviar notificações push para o Expo:', error.message);
+    }
+  }
+
+  // Busca o histórico de vendas baseando-se no papel (Role) do usuário
+  async findHistorico(usuarioId: number, role: string, lojaId: number) {
+    if (role === 'DONO') {
+      // Dono vê todas as vendas associadas à loja (Tenant) para consolidar no faturamento
+      return this.prisma.venda.findMany({
+        where: {
+          lojaId,
+        },
+        include: {
+          itens: {
+            include: {
+              produto: true,
+            },
+          },
+          cliente: true,
+          usuario: true, // Importante para sabermos qual funcionária fez a venda
+        },
+        orderBy: {
+          createdAt: 'desc',
+        },
+      });
+    } else {
+      // Funcionária vê apenas suas próprias vendas no histórico pessoal
+      return this.prisma.venda.findMany({
+        where: {
+          usuarioId,
+        },
+        include: {
+          itens: {
+            include: {
+              produto: true,
+            },
+          },
+          cliente: true,
+        },
+        orderBy: {
+          createdAt: 'desc',
+        },
+      });
+    }
   }
 }

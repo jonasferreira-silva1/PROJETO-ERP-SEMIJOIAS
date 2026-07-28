@@ -17,10 +17,10 @@ export class VendasController {
   }
 
   // Endpoint GET /vendas/historico
-  // Retorna o histórico de vendas do usuário autenticado no momento
+  // Retorna o histórico de vendas do usuário autenticado no momento (com regras de visibilidade)
   @Get('historico')
   async getHistorico(@Request() req: any) {
-    const { id } = req.user;
-    return this.vendasService.findHistorico(id);
+    const { id, role, lojaId } = req.user;
+    return this.vendasService.findHistorico(id, role, lojaId);
   }
 }

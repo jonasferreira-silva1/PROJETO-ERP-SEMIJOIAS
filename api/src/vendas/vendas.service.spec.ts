@@ -3,6 +3,7 @@ import { VendasService } from './vendas.service';
 import { PrismaService } from '../prisma.service';
 import { BadRequestException } from '@nestjs/common';
 import { FormaPagamento } from '@prisma/client';
+import { VendasGateway } from './vendas.gateway';
 
 describe('VendasService', () => {
   let service: VendasService;
@@ -33,6 +34,10 @@ describe('VendasService', () => {
     $queryRaw: jest.fn(),
   };
 
+  const mockVendasGateway = {
+    emitNewVenda: jest.fn(),
+  };
+
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -40,6 +45,10 @@ describe('VendasService', () => {
         {
           provide: PrismaService,
           useValue: mockPrismaService,
+        },
+        {
+          provide: VendasGateway,
+          useValue: mockVendasGateway,
         },
       ],
     }).compile();
