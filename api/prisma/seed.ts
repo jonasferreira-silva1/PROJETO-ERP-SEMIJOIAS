@@ -16,6 +16,7 @@ async function main() {
   // Limpando tabelas antigas (ordem reversa para respeitar chaves estrangeiras)
   await prisma.itemVenda.deleteMany({});
   await prisma.venda.deleteMany({});
+  await prisma.cliente.deleteMany({});
   await prisma.produto.deleteMany({});
   await prisma.usuario.deleteMany({});
   await prisma.filial.deleteMany({});
