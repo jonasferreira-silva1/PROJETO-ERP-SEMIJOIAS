@@ -304,4 +304,152 @@ export class VendasService {
       });
     }
   }
+
+  // Consolida o faturamento, ticket médio, quantidade de vendas e dados do gráfico
+  async getResumo(periodo: 'hoje' | 'ontem' | '7dias', user: any) {
+    const { start, end } = this.getDateRange(periodo);
+
+    // Consulta todas as vendas da loja no período de datas estabelecido
+    const vendas = await this.prisma.venda.findMany({
+      where: {
+        lojaId: user.lojaId,
+        dataHora: {
+          gte: start,
+          lte: end,
+        },
+      },
+    });
+
+    const totalVendas = vendas.length;
+    const faturamento = vendas.reduce((sum, v) => sum + v.valorTotal, 0);
+    const ticketMedio = totalVendas > 0 ? faturamento / totalVendas : 0;
+
+    // Agrupador do gráfico reativo
+    const graficoMap = new Map<string, number>();
+
+    if (periodo === 'hoje' || periodo === 'ontem') {
+      // buckets comerciais de 2 em 2 horas
+      const buckets = ['08:00', '10:00', '12:00', '14:00', '16:00', '18:00', '20:00', '22:00'];
+      buckets.forEach(b => graficoMap.set(b, 0));
+
+      for (const venda of vendas) {
+        // Converte data UTC para a hora local correspondente em SP (ex: "13")
+        const horaStr = venda.dataHora.toLocaleTimeString('en-US', {
+          timeZone: 'America/Sao_Paulo',
+          hour12: false,
+          hour: '2-digit',
+        });
+        const hora = parseInt(horaStr, 10);
+
+        // Agrupa na faixa correta
+        let targetBucket = '08:00';
+        if (hora >= 22) targetBucket = '22:00';
+        else if (hora >= 20) targetBucket = '20:00';
+        else if (hora >= 18) targetBucket = '18:00';
+        else if (hora >= 16) targetBucket = '16:00';
+        else if (hora >= 14) targetBucket = '14:00';
+        else if (hora >= 12) targetBucket = '12:00';
+        else if (hora >= 10) targetBucket = '10:00';
+
+        graficoMap.set(targetBucket, (graficoMap.get(targetBucket) || 0) + venda.valorTotal);
+      }
+    } else {
+      // últimos 7 dias em datas DD/MM locais ordenadas
+      const pad = (num: number) => String(num).padStart(2, '0');
+      const dataLabels: string[] = [];
+
+      for (let i = 6; i >= 0; i--) {
+        const localDate = new Date(Date.now() - i * 24 * 60 * 60 * 1000);
+        const parts = new Intl.DateTimeFormat('en-US', {
+          timeZone: 'America/Sao_Paulo',
+          day: '2-digit',
+          month: '2-digit',
+        }).formatToParts(localDate);
+
+        const day = parts.find(p => p.type === 'day')?.value || '00';
+        const month = parts.find(p => p.type === 'month')?.value || '00';
+        const label = `${day}/${month}`;
+        dataLabels.push(label);
+        graficoMap.set(label, 0);
+      }
+
+      for (const venda of vendas) {
+        const parts = new Intl.DateTimeFormat('en-US', {
+          timeZone: 'America/Sao_Paulo',
+          day: '2-digit',
+          month: '2-digit',
+        }).formatToParts(venda.dataHora);
+
+        const day = parts.find(p => p.type === 'day')?.value || '00';
+        const month = parts.find(p => p.type === 'month')?.value || '00';
+        const label = `${day}/${month}`;
+
+        if (graficoMap.has(label)) {
+          graficoMap.set(label, (graficoMap.get(label) || 0) + venda.valorTotal);
+        }
+      }
+    }
+
+    const grafico = Array.from(graficoMap.entries()).map(([label, valor]) => ({
+      label,
+      valor,
+    }));
+
+    return {
+      faturamento,
+      totalVendas,
+      ticketMedio,
+      grafico,
+    };
+  }
+
+  // Gera limites de data e hora UTC para a consulta baseada no timezone de Brasília
+  private getDateRange(periodo: 'hoje' | 'ontem' | '7dias'): { start: Date; end: Date } {
+    const formatter = new Intl.DateTimeFormat('en-US', {
+      timeZone: 'America/Sao_Paulo',
+      year: 'numeric',
+      month: 'numeric',
+      day: 'numeric',
+    });
+
+    const parts = formatter.formatToParts(new Date());
+    const getValue = (type: string) => parts.find(p => p.type === type)?.value || '0';
+    const year = parseInt(getValue('year'), 10);
+    const month = parseInt(getValue('month') || '1', 10) - 1;
+    const day = parseInt(getValue('day') || '1', 10);
+
+    const pad = (num: number) => String(num).padStart(2, '0');
+    const yyyy = year;
+    const mm = pad(month + 1);
+    const dd = pad(day);
+
+    let startIso: string;
+    let endIso: string;
+
+    if (periodo === 'hoje') {
+      startIso = `${yyyy}-${mm}-${dd}T00:00:00-03:00`;
+      endIso = `${yyyy}-${mm}-${dd}T23:59:59-03:00`;
+    } else if (periodo === 'ontem') {
+      const yesterday = new Date(Date.UTC(year, month, day - 1));
+      const yyyyY = yesterday.getUTCFullYear();
+      const mmY = pad(yesterday.getUTCMonth() + 1);
+      const ddY = pad(yesterday.getUTCDate());
+
+      startIso = `${yyyyY}-${mmY}-${ddY}T00:00:00-03:00`;
+      endIso = `${yyyyY}-${mmY}-${ddY}T23:59:59-03:00`;
+    } else {
+      const startDay = new Date(Date.UTC(year, month, day - 6));
+      const yyyyS = startDay.getUTCFullYear();
+      const mmS = pad(startDay.getUTCMonth() + 1);
+      const ddS = pad(startDay.getUTCDate());
+
+      startIso = `${yyyyS}-${mmS}-${ddS}T00:00:00-03:00`;
+      endIso = `${yyyy}-${mm}-${dd}T23:59:59-03:00`;
+    }
+
+    return {
+      start: new Date(startIso),
+      end: new Date(endIso),
+    };
+  }
 }

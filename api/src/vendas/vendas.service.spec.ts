@@ -118,4 +118,28 @@ describe('VendasService', () => {
       );
     });
   });
+
+  describe('getResumo', () => {
+    it('should aggregate sales and group by hour for periodo = hoje', async () => {
+      const salesMock = [
+        { id: 1, valorTotal: 100, dataHora: new Date('2026-07-28T13:30:00-03:00') },
+        { id: 2, valorTotal: 150, dataHora: new Date('2026-07-28T15:45:00-03:00') },
+      ];
+      mockPrismaService.venda.findMany.mockResolvedValue(salesMock);
+
+      const result = await service.getResumo('hoje', mockUser);
+
+      expect(result.faturamento).toBe(250);
+      expect(result.totalVendas).toBe(2);
+      expect(result.ticketMedio).toBe(125);
+
+      // Bucket 12:00 (que engloba 13h30)
+      const b12 = result.grafico.find(g => g.label === '12:00');
+      expect(b12?.valor).toBe(100);
+
+      // Bucket 14:00 (que engloba 15h45)
+      const b14 = result.grafico.find(g => g.label === '14:00');
+      expect(b14?.valor).toBe(150);
+    });
+  });
 });
