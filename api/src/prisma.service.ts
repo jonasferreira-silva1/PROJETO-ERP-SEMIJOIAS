@@ -26,6 +26,16 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
   // Executa automaticamente ao iniciar o módulo: abre a conexão com o banco
   async onModuleInit() {
     await this.$connect();
+    // Garante que apenas um caixa fique ABERTO por vez por filial (índice único parcial)
+    try {
+      await this.$executeRawUnsafe(`
+        CREATE UNIQUE INDEX IF NOT EXISTS "unique_caixa_aberto_filial" 
+        ON "Caixa" ("filialId") 
+        WHERE status = 'ABERTO';
+      `);
+    } catch (err: any) {
+      console.error('[Prisma] Erro ao criar índice único parcial de Caixa:', err.message);
+    }
   }
 
   // Executa automaticamente ao encerrar o módulo: fecha a conexão e limpa o pool

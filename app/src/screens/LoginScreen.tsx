@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, TextInput, TouchableOpacity, ActivityIndicator, KeyboardAvoidingView, Platform, ScrollView } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, ActivityIndicator, KeyboardAvoidingView, Platform, ScrollView, Alert } from 'react-native';
 import { useAuth } from '../context/AuthContext';
 import { Gem, Mail, Lock, Eye, EyeOff, Fingerprint } from 'lucide-react-native';
 
@@ -53,8 +53,8 @@ export default function LoginScreen() {
 
           {/* Card do Formulário */}
           <View className="bg-white w-full max-w-sm rounded-3xl p-6 shadow-md border border-adorne-gold/10">
-            <Text className="text-xl font-bold text-adorne-teal mb-1">Bem-vinda de volta!</Text>
-            <Text className="text-adorne-gray text-xs mb-6">Faça login para continuar</Text>
+            <Text className="text-xl font-bold text-adorne-teal mb-1 text-center">Bem-vinda de volta!</Text>
+            <Text className="text-adorne-gray text-xs mb-6 text-center">Faça login para continuar</Text>
 
             {/* Mensagem de Erro de Validação/API */}
             {errorMsg ? (
@@ -107,7 +107,7 @@ export default function LoginScreen() {
                 </View>
                 <Text className="text-xs text-adorne-gray">Lembrar de mim</Text>
               </TouchableOpacity>
-              <TouchableOpacity>
+              <TouchableOpacity onPress={() => Alert.alert('Recuperação de Senha', 'Funcionalidade em desenvolvimento. Por favor, solicite a redefinição de sua senha ao administrador da sua loja.')}>
                 <Text className="text-xs text-adorne-teal font-semibold">Esqueci minha senha</Text>
               </TouchableOpacity>
             </View>
@@ -124,6 +124,14 @@ export default function LoginScreen() {
                 <Text className="text-white font-bold text-sm">Entrar</Text>
               )}
             </TouchableOpacity>
+
+            {/* Link para Criar Conta */}
+            <View className="flex-row justify-center mt-4">
+              <Text className="text-xs text-adorne-gray">Não tem uma conta?</Text>
+              <TouchableOpacity onPress={() => Alert.alert('Criar Conta', 'Para cadastrar sua loja no ERP Semijoias Adorne, entre em contato com a nossa equipe comercial.')}>
+                <Text className="text-xs text-adorne-teal font-bold ml-1">Criar conta</Text>
+              </TouchableOpacity>
+            </View>
           </View>
 
           {/* Opção Biométrica */}

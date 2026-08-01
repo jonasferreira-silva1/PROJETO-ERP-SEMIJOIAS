@@ -56,6 +56,17 @@ describe('VendasService', () => {
     service = module.get<VendasService>(VendasService);
     prisma = module.get<PrismaService>(PrismaService);
 
+    mockPrismaService.$queryRaw.mockImplementation(async (query: any) => {
+      const sql = Array.isArray(query) ? query[0] : '';
+      if (sql.includes('Caixa')) {
+        return [{ id: 99 }];
+      }
+      if (sql.includes('Produto')) {
+        return [{ id: 1, nome: 'Brinco Ouro', preco: 50, estoque: 10, lojaId: 1 }];
+      }
+      return [];
+    });
+
     jest.clearAllMocks();
   });
 
@@ -102,10 +113,17 @@ describe('VendasService', () => {
     it('should throw BadRequestException if stock is insufficient', async () => {
       mockPrismaService.venda.findUnique.mockResolvedValue(null);
       
-      // Simula retorno do produto travado com FOR UPDATE (estoque: 1, solicitado: 2)
-      mockPrismaService.$queryRaw.mockResolvedValue([
-        { id: 1, nome: 'Brinco Ouro', preco: 50, estoque: 1, lojaId: 1 },
-      ]);
+      // Simula retorno do produto travado com estoque insuficiente e caixa ativo
+      mockPrismaService.$queryRaw.mockImplementation(async (query: any) => {
+        const sql = Array.isArray(query) ? query[0] : '';
+        if (sql.includes('Caixa')) {
+          return [{ id: 99 }];
+        }
+        if (sql.includes('Produto')) {
+          return [{ id: 1, nome: 'Brinco Ouro', preco: 50, estoque: 1, lojaId: 1 }];
+        }
+        return [];
+      });
 
       const dto = {
         uuid: 'uuid-1234',

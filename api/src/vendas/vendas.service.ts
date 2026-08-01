@@ -40,6 +40,20 @@ export class VendasService {
     // 2. Transação atômica do Prisma
     const novaVenda = await this.prisma.$transaction(async (tx) => {
       
+      // A0. Validação e trava (FOR UPDATE) do caixa ativo para evitar concorrência com o fechamento
+      const caixasAtivos = await tx.$queryRaw<any[]>`
+        SELECT id FROM "Caixa"
+        WHERE "filialId" = ${user.filialId} AND status = 'ABERTO'
+        LIMIT 1
+        FOR UPDATE
+      `;
+
+      if (caixasAtivos.length === 0) {
+        throw new BadRequestException('Não há nenhum caixa aberto nesta filial. Abra o caixa antes de realizar vendas.');
+      }
+
+      const caixaId = caixasAtivos[0].id;
+
       // A. Resolução de CRM - Cliente
       let clienteId: number | null = null;
       const sanitizedNome = clienteNome?.trim();
@@ -161,6 +175,7 @@ export class VendasService {
           filialId: user.filialId,
           usuarioId: user.id,
           clienteId,
+          caixaId,
           valorTotal,
           formaPagamento,
           observacao,

@@ -27,6 +27,7 @@ model Loja {
   produtos  Produto[]
   vendas    Venda[]
   clientes  Cliente[]
+  caixas    Caixa[]
 }
 
 model Filial {
@@ -40,6 +41,7 @@ model Filial {
 
   usuarios  Usuario[]
   vendas    Venda[]
+  caixas    Caixa[]
 }
 
 model Usuario {
@@ -57,6 +59,8 @@ model Usuario {
 
   vendas     Venda[]
   pushTokens PushToken[]
+  caixasAbertos  Caixa[] @relation("AberturaCaixa")
+  caixasFechados Caixa[] @relation("FechamentoCaixa")
 }
 
 model PushToken {
@@ -116,6 +120,8 @@ model Venda {
   usuario        Usuario        @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
   clienteId      Int?
   cliente        Cliente?       @relation(fields: [clienteId], references: [id], onDelete: SetNull)
+  caixaId        Int?
+  caixa          Caixa?         @relation(fields: [caixaId], references: [id], onDelete: SetNull)
   dataHora       DateTime       @default(now())
   valorTotal     Float
   formaPagamento FormaPagamento
@@ -128,6 +134,55 @@ model Venda {
   @@index([usuarioId, createdAt])
   @@index([filialId, createdAt])
   @@index([lojaId, createdAt])
+  @@index([caixaId])
+}
+
+enum StatusCaixa {
+  ABERTO
+  FECHADO
+}
+
+enum TipoMovimentacao {
+  ENTRADA
+  SAIDA
+}
+
+model Caixa {
+  id                   Int                 @id @default(autoincrement())
+  lojaId               Int
+  loja                 Loja                @relation(fields: [lojaId], references: [id], onDelete: Cascade)
+  filialId             Int
+  filial               Filial              @relation(fields: [filialId], references: [id], onDelete: Cascade)
+  usuarioAberturaId    Int
+  usuarioAbertura      Usuario             @relation("AberturaCaixa", fields: [usuarioAberturaId], references: [id])
+  usuarioFechamentoId  Int?
+  usuarioFechamento    Usuario?            @relation("FechamentoCaixa", fields: [usuarioFechamentoId], references: [id])
+  status               StatusCaixa         @default(ABERTO)
+  dataAbertura         DateTime            @default(now())
+  dataFechamento       DateTime?
+  saldoInicial         Float
+  saldoFinalReal       Float?
+  saldoFinalEsperado   Float?
+  diferenca            Float?
+  observacao           String?
+  createdAt            DateTime            @default(now())
+  updatedAt            DateTime            @updatedAt
+
+  vendas               Venda[]
+  movimentacoes        MovimentacaoCaixa[]
+
+  @@index([filialId, status])
+  @@index([lojaId])
+}
+
+model MovimentacaoCaixa {
+  id        Int              @id @default(autoincrement())
+  caixaId   Int
+  caixa     Caixa            @relation(fields: [caixaId], references: [id], onDelete: Cascade)
+  tipo      TipoMovimentacao
+  valor     Float
+  descricao String
+  createdAt DateTime         @default(now())
 }
 
 model ItemVenda {

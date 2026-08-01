@@ -5,10 +5,11 @@ import { PrismaModule } from './prisma.module';
 import { AuthModule } from './auth/auth.module';
 import { ProdutosModule } from './produtos/produtos.module';
 import { VendasModule } from './vendas/vendas.module';
+import { CaixasModule } from './caixas/caixas.module';
 
 // Módulo principal do NestJS que une todas as partes da API (Banco de dados e Autenticação)
 @Module({
-  imports: [PrismaModule, AuthModule, ProdutosModule, VendasModule], // Importa os submódulos da API
+  imports: [PrismaModule, AuthModule, ProdutosModule, VendasModule, CaixasModule], // Importa os submódulos da API
   controllers: [AppController],        // Define os controllers HTTP gerais
   providers: [AppService],             // Define os serviços gerais da aplicação
 })

@@ -7,7 +7,8 @@ import {
   ActivityIndicator, 
   Platform, 
   Alert,
-  ScrollView
+  ScrollView,
+  Modal
 } from 'react-native';
 import { useAuth } from '../context/AuthContext';
 import * as SecureStore from '../services/storage';
@@ -24,7 +25,9 @@ import {
   User, 
   ChevronRight,
   TrendingDown,
-  Award
+  Award,
+  X,
+  Calendar
 } from 'lucide-react-native';
 
 // Interface para os itens do gráfico de faturamento
@@ -66,6 +69,13 @@ export default function DonaPlaceholder() {
     periodoRef.current = periodo;
   }, [periodo]);
 
+  // Estados para as Modais de Detalhe e Gráfico
+  const [allSales, setAllSales] = useState<any[]>([]);
+  const [selectedSale, setSelectedSale] = useState<any | null>(null);
+  const [isSaleModalVisible, setIsSaleModalVisible] = useState(false);
+  const [selectedChartBarLabel, setSelectedChartBarLabel] = useState<string | null>(null);
+  const [isChartSalesModalVisible, setIsChartSalesModalVisible] = useState(false);
+
   // Estados dos KPIs Analíticos
   const [faturamento, setFaturamento] = useState(0);
   const [totalVendas, setTotalVendas] = useState(0);
@@ -78,7 +88,7 @@ export default function DonaPlaceholder() {
   const [isConnected, setIsConnected] = useState(false);
 
   // Referência do debounce timer
-  const debounceTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const debounceTimerRef = useRef<any | null>(null);
 
   // Inicializa o WebSocket e os listeners ao montar
   useEffect(() => {
@@ -168,6 +178,7 @@ export default function DonaPlaceholder() {
       // 2. Busca lista de histórico bruto para o feed recente
       const histResponse = await api.get('/vendas/historico');
       setRecentSales(histResponse.data.slice(0, 5)); // Exibe apenas as 5 mais recentes no dashboard
+      setAllSales(histResponse.data); // Mantém todo o histórico para ações interativas
     } catch (err) {
       console.log('Erro ao carregar dados do dashboard:', err);
     } finally {
@@ -207,6 +218,65 @@ export default function DonaPlaceholder() {
     const dateStr = d.toLocaleDateString('pt-BR');
     const timeStr = d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
     return `${dateStr} às ${timeStr}`;
+  };
+
+  // Filtra as vendas pertencentes a uma barra do gráfico selecionada
+  const getFilteredSalesForChart = () => {
+    if (!selectedChartBarLabel) return [];
+    
+    return allSales.filter(venda => {
+      const dateObj = new Date(venda.createdAt);
+      
+      if (periodo === '7dias') {
+        try {
+          const parts = new Intl.DateTimeFormat('en-US', {
+            timeZone: 'America/Sao_Paulo',
+            day: '2-digit',
+            month: '2-digit',
+          }).formatToParts(dateObj);
+
+          const day = parts.find(p => p.type === 'day')?.value || '00';
+          const month = parts.find(p => p.type === 'month')?.value || '00';
+          const label = `${day}/${month}`;
+          return label === selectedChartBarLabel;
+        } catch (e) {
+          const day = String(dateObj.getDate()).padStart(2, '0');
+          const month = String(dateObj.getMonth() + 1).padStart(2, '0');
+          return `${day}/${month}` === selectedChartBarLabel;
+        }
+      } else {
+        try {
+          const horaStr = dateObj.toLocaleTimeString('en-US', {
+            timeZone: 'America/Sao_Paulo',
+            hour12: false,
+            hour: '2-digit',
+          });
+          const hora = parseInt(horaStr, 10);
+          
+          let targetBucket = '08:00';
+          if (hora >= 22) targetBucket = '22:00';
+          else if (hora >= 20) targetBucket = '20:00';
+          else if (hora >= 18) targetBucket = '18:00';
+          else if (hora >= 16) targetBucket = '16:00';
+          else if (hora >= 14) targetBucket = '14:00';
+          else if (hora >= 12) targetBucket = '12:00';
+          else if (hora >= 10) targetBucket = '10:00';
+          
+          return targetBucket === selectedChartBarLabel;
+        } catch (e) {
+          const hora = dateObj.getHours();
+          let targetBucket = '08:00';
+          if (hora >= 22) targetBucket = '22:00';
+          else if (hora >= 20) targetBucket = '20:00';
+          else if (hora >= 18) targetBucket = '18:00';
+          else if (hora >= 16) targetBucket = '16:00';
+          else if (hora >= 14) targetBucket = '14:00';
+          else if (hora >= 12) targetBucket = '12:00';
+          else if (hora >= 10) targetBucket = '10:00';
+          return targetBucket === selectedChartBarLabel;
+        }
+      }
+    });
   };
 
   // Encontra o maior valor do gráfico para calibrar o faturamento proporcionalmente
@@ -336,7 +406,18 @@ export default function DonaPlaceholder() {
                     const alturaBarra = maxGraficoValue > 0 ? (item.valor / maxGraficoValue) * 110 : 0;
                     
                     return (
-                      <View key={index} className="items-center flex-1 mx-0.5">
+                      <TouchableOpacity 
+                        key={index} 
+                        className="items-center flex-1 mx-0.5"
+                        onPress={() => {
+                          if (item.valor > 0) {
+                            setSelectedChartBarLabel(item.label);
+                            setIsChartSalesModalVisible(true);
+                          }
+                        }}
+                        disabled={item.valor === 0}
+                        activeOpacity={0.7}
+                      >
                         
                         {/* Indicador do valor da barra */}
                         {item.valor > 0 && (
@@ -357,7 +438,7 @@ export default function DonaPlaceholder() {
                         <Text className="text-[8px] text-adorne-gray font-bold mt-2 text-center" style={{ fontSize: 8 }}>
                           {item.label}
                         </Text>
-                      </View>
+                      </TouchableOpacity>
                     );
                   })}
                 </View>
@@ -377,9 +458,13 @@ export default function DonaPlaceholder() {
                 </View>
               ) : (
                 recentSales.map((item) => (
-                  <View 
+                  <TouchableOpacity 
                     key={item.id} 
-                    className="bg-white rounded-2xl p-4 mb-2.5 border border-adorne-gold/15 shadow-xs flex-row justify-between items-center"
+                    onPress={() => {
+                      setSelectedSale(item);
+                      setIsSaleModalVisible(true);
+                    }}
+                    className="bg-white rounded-2xl p-4 mb-2.5 border border-adorne-gold/15 shadow-xs flex-row justify-between items-center active:opacity-90"
                   >
                     <View className="flex-1 pr-2">
                       <View className="flex-row items-center mb-1">
@@ -389,11 +474,14 @@ export default function DonaPlaceholder() {
                       <Text className="text-xs font-bold text-adorne-text">{item.cliente?.nome || 'Cliente Avulso'}</Text>
                       <Text className="text-[10px] text-adorne-gray mt-0.5">Vendedora: {item.usuario?.nome || 'Funcionária'}</Text>
                     </View>
-                    <View className="items-end">
-                      <Text className="text-sm font-black text-emerald-600">{formatCurrency(item.valorTotal)}</Text>
-                      <Text className="text-[9px] text-adorne-gray uppercase font-bold mt-1 tracking-wider">{item.formaPagamento}</Text>
+                    <View className="flex-row items-center">
+                      <View className="items-end mr-2">
+                        <Text className="text-sm font-black text-emerald-600">{formatCurrency(item.valorTotal)}</Text>
+                        <Text className="text-[9px] text-adorne-gray uppercase font-bold mt-1 tracking-wider">{item.formaPagamento}</Text>
+                      </View>
+                      <ChevronRight size={14} color="#A0B0AE" />
                     </View>
-                  </View>
+                  </TouchableOpacity>
                 ))
               )}
             </View>
@@ -401,6 +489,189 @@ export default function DonaPlaceholder() {
           </View>
         )}
       </ScrollView>
+
+      {/* Modal de Detalhes da Venda */}
+      <Modal
+        visible={isSaleModalVisible}
+        animationType="fade"
+        transparent={true}
+        onRequestClose={() => setIsSaleModalVisible(false)}
+      >
+        <View className="flex-1 justify-center items-center bg-black/60 px-4">
+          <View className="bg-white w-full max-w-sm rounded-3xl p-6 shadow-2xl border border-adorne-gold/15">
+            
+            {/* Header */}
+            <View className="flex-row justify-between items-center mb-4 pb-2 border-b border-adorne-background">
+              <View className="flex-row items-center">
+                <Gem size={18} color="#0B3A34" className="mr-1.5" />
+                <Text className="text-sm font-bold text-adorne-teal">Detalhes da Venda</Text>
+              </View>
+              <TouchableOpacity 
+                onPress={() => setIsSaleModalVisible(false)}
+                className="w-7 h-7 rounded-full bg-adorne-background items-center justify-center"
+              >
+                <X size={14} color="#607371" />
+              </TouchableOpacity>
+            </View>
+
+            {/* Informações Gerais */}
+            {selectedSale && (
+              <ScrollView showsVerticalScrollIndicator={false} style={{ maxHeight: 350 }}>
+                {/* ID da Venda */}
+                <View className="bg-adorne-background p-3 rounded-2xl mb-3 flex-row justify-between items-center border border-adorne-gold/10">
+                  <Text className="text-[10px] font-bold text-adorne-gray uppercase">Código / UUID</Text>
+                  <Text className="text-[9px] font-bold text-adorne-teal uppercase tracking-wider">{selectedSale.uuid ? selectedSale.uuid.substring(0, 8) : `#${selectedSale.id}`}</Text>
+                </View>
+
+                {/* Grid */}
+                <View className="mb-4">
+                  <View className="flex-row justify-between py-1.5 border-b border-adorne-background">
+                    <Text className="text-xs text-adorne-gray">Data e Hora</Text>
+                    <Text className="text-xs font-bold text-adorne-text">{formatDate(selectedSale.createdAt)}</Text>
+                  </View>
+                  <View className="flex-row justify-between py-1.5 border-b border-adorne-background">
+                    <Text className="text-xs text-adorne-gray">Cliente</Text>
+                    <Text className="text-xs font-bold text-adorne-text">{selectedSale.cliente?.nome || 'Cliente Avulso'}</Text>
+                  </View>
+                  {selectedSale.cliente?.telefone && (
+                    <View className="flex-row justify-between py-1.5 border-b border-adorne-background">
+                      <Text className="text-xs text-adorne-gray">Telefone</Text>
+                      <Text className="text-xs font-bold text-adorne-text">{selectedSale.cliente.telefone}</Text>
+                    </View>
+                  )}
+                  <View className="flex-row justify-between py-1.5 border-b border-adorne-background">
+                    <Text className="text-xs text-adorne-gray">Vendedora</Text>
+                    <Text className="text-xs font-bold text-adorne-text">{selectedSale.usuario?.nome || 'Funcionária'}</Text>
+                  </View>
+                  <View className="flex-row justify-between py-1.5 border-b border-adorne-background">
+                    <Text className="text-xs text-adorne-gray">Forma de Pagamento</Text>
+                    <Text className="text-xs font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-md uppercase text-[10px]">
+                      {selectedSale.formaPagamento}
+                    </Text>
+                  </View>
+                  {selectedSale.observacao && (
+                    <View className="py-1.5">
+                      <Text className="text-xs text-adorne-gray mb-1">Observações</Text>
+                      <View className="bg-adorne-background p-2 rounded-xl border border-adorne-gold/5">
+                        <Text className="text-xs text-adorne-text italic">{selectedSale.observacao}</Text>
+                      </View>
+                    </View>
+                  )}
+                </View>
+
+                {/* Itens da Venda */}
+                <Text className="text-xs font-bold text-adorne-teal uppercase tracking-wider mb-2">Peças Vendidas</Text>
+                {selectedSale.itens && selectedSale.itens.map((item: any, idx: number) => (
+                  <View key={idx} className="bg-adorne-background p-3 rounded-2xl mb-1.5 flex-row justify-between items-center border border-adorne-gold/5">
+                    <View className="flex-1 pr-2">
+                      <Text className="text-xs font-bold text-adorne-text">{item.produto?.nome || 'Peça Excluída'}</Text>
+                      <Text className="text-[10px] text-adorne-gray mt-0.5">
+                        {item.quantidade}x {formatCurrency(item.valorUnitario)}
+                      </Text>
+                    </View>
+                    <Text className="text-xs font-bold text-adorne-teal">
+                      {formatCurrency(item.quantidade * item.valorUnitario)}
+                    </Text>
+                  </View>
+                ))}
+
+                {/* Total consolidado */}
+                <View className="mt-4 pt-3 border-t border-adorne-gold/15 flex-row justify-between items-center">
+                  <Text className="text-sm font-bold text-adorne-text">Total da Venda</Text>
+                  <Text className="text-lg font-black text-emerald-600">
+                    {formatCurrency(selectedSale.valorTotal)}
+                  </Text>
+                </View>
+              </ScrollView>
+            )}
+
+            {/* Botão Fechar */}
+            <TouchableOpacity
+              onPress={() => setIsSaleModalVisible(false)}
+              className="mt-6 w-full bg-adorne-teal h-11 rounded-xl items-center justify-center active:opacity-90"
+            >
+              <Text className="text-white font-bold text-sm">Fechar</Text>
+            </TouchableOpacity>
+
+          </View>
+        </View>
+      </Modal>
+
+      {/* Modal de Vendas Filtradas do Gráfico */}
+      <Modal
+        visible={isChartSalesModalVisible}
+        animationType="fade"
+        transparent={true}
+        onRequestClose={() => setIsChartSalesModalVisible(false)}
+      >
+        <View className="flex-1 justify-center items-center bg-black/60 px-4">
+          <View className="bg-white w-full max-w-sm rounded-3xl p-6 shadow-2xl border border-adorne-gold/15 h-[500px] flex-column justify-between">
+            
+            <View className="flex-1">
+              {/* Header */}
+              <View className="flex-row justify-between items-center mb-4 pb-2 border-b border-adorne-background">
+                <View className="flex-row items-center">
+                  <Calendar size={18} color="#0B3A34" className="mr-1.5" />
+                  <Text className="text-sm font-bold text-adorne-teal">
+                    Vendas ({selectedChartBarLabel})
+                  </Text>
+                </View>
+                <TouchableOpacity 
+                  onPress={() => setIsChartSalesModalVisible(false)}
+                  className="w-7 h-7 rounded-full bg-adorne-background items-center justify-center"
+                >
+                  <X size={14} color="#607371" />
+                </TouchableOpacity>
+              </View>
+
+              {/* Lista de Vendas */}
+              <ScrollView showsVerticalScrollIndicator={false} className="flex-1">
+                {getFilteredSalesForChart().length === 0 ? (
+                  <View className="py-24 items-center justify-center">
+                    <Text className="text-xs text-adorne-gray italic">Nenhuma venda neste período</Text>
+                  </View>
+                ) : (
+                  getFilteredSalesForChart().map((venda) => (
+                    <TouchableOpacity
+                      key={venda.id}
+                      onPress={() => {
+                        setSelectedSale(venda);
+                        setIsSaleModalVisible(true);
+                      }}
+                      className="bg-adorne-background rounded-2xl p-3.5 mb-2 border border-adorne-gold/5 flex-row justify-between items-center active:opacity-80"
+                    >
+                      <View className="flex-1 pr-2">
+                        <View className="flex-row items-center mb-1">
+                          <Clock size={9} color="#607371" className="mr-1" />
+                          <Text className="text-[8px] text-adorne-gray font-bold">{formatDate(venda.createdAt)}</Text>
+                        </View>
+                        <Text className="text-xs font-bold text-adorne-text">{venda.cliente?.nome || 'Cliente Avulso'}</Text>
+                        <Text className="text-[9px] text-adorne-gray mt-0.5">Vendedora: {venda.usuario?.nome || 'Funcionária'}</Text>
+                      </View>
+                      <View className="items-end flex-row items-center">
+                        <View className="items-end mr-1">
+                          <Text className="text-xs font-black text-emerald-600">{formatCurrency(venda.valorTotal)}</Text>
+                          <Text className="text-[8px] text-adorne-gray uppercase font-bold mt-0.5 tracking-wider">{venda.formaPagamento}</Text>
+                        </View>
+                        <ChevronRight size={12} color="#A0B0AE" />
+                      </View>
+                    </TouchableOpacity>
+                  ))
+                )}
+              </ScrollView>
+            </View>
+
+            {/* Botão Fechar */}
+            <TouchableOpacity
+              onPress={() => setIsChartSalesModalVisible(false)}
+              className="mt-4 w-full bg-adorne-teal h-11 rounded-xl items-center justify-center active:opacity-90"
+            >
+              <Text className="text-white font-bold text-sm">Fechar</Text>
+            </TouchableOpacity>
+
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
