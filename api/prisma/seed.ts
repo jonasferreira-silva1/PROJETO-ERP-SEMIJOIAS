@@ -16,6 +16,8 @@ async function main() {
   // Limpando tabelas antigas (ordem reversa para respeitar chaves estrangeiras)
   await prisma.itemVenda.deleteMany({});
   await prisma.venda.deleteMany({});
+  await prisma.movimentacaoCaixa.deleteMany({});
+  await prisma.caixa.deleteMany({});
   await prisma.cliente.deleteMany({});
   await prisma.pushToken.deleteMany({});
   await prisma.produto.deleteMany({});
@@ -77,8 +79,9 @@ async function main() {
     { nome: 'Pulseira Riviera Zircônia', categoria: 'Pulseiras', preco: 150.00, estoque: 15 },
   ];
 
+  const createdProdutos = [];
   for (const prod of produtos) {
-    await prisma.produto.create({
+    const p = await prisma.produto.create({
       data: {
         lojaId: loja.id,
         nome: prod.nome,
@@ -86,6 +89,95 @@ async function main() {
         preco: prod.preco,
         estoque: prod.estoque,
       },
+    });
+    createdProdutos.push(p);
+  }
+
+  // Obter o ID da funcionária para as vendas
+  const funcionaria = await prisma.usuario.findFirst({
+    where: { role: 'FUNCIONARIA' }
+  });
+
+  if (funcionaria) {
+    console.log('Criando vendas de teste para múltiplos meses...');
+    
+    // Vendas de Agosto de 2026 (Mês atual)
+    // Venda 1: Colar (1) + Anel (1) = 185.00
+    await prisma.venda.create({
+      data: {
+        uuid: 'seed-sale-aug-1',
+        lojaId: loja.id,
+        filialId: filial.id,
+        usuarioId: funcionaria.id,
+        dataHora: new Date('2026-08-05T14:00:00-03:00'),
+        valorTotal: 185.00,
+        formaPagamento: 'PIX',
+        observacao: 'Venda de teste Agosto 1',
+        itens: {
+          create: [
+            { produtoId: createdProdutos[1].id, quantidade: 1, valorUnitario: createdProdutos[1].preco },
+            { produtoId: createdProdutos[2].id, quantidade: 1, valorUnitario: createdProdutos[2].preco },
+          ]
+        }
+      }
+    });
+
+    // Venda 2: Pulseira (1) = 150.00
+    await prisma.venda.create({
+      data: {
+        uuid: 'seed-sale-aug-2',
+        lojaId: loja.id,
+        filialId: filial.id,
+        usuarioId: funcionaria.id,
+        dataHora: new Date('2026-08-12T10:30:00-03:00'),
+        valorTotal: 150.00,
+        formaPagamento: 'CREDITO',
+        observacao: 'Venda de teste Agosto 2',
+        itens: {
+          create: [
+            { produtoId: createdProdutos[3].id, quantidade: 1, valorUnitario: createdProdutos[3].preco },
+          ]
+        }
+      }
+    });
+
+    // Vendas de Julho de 2026 (Mês Anterior)
+    // Venda 3: Colar (1) = 120.00
+    await prisma.venda.create({
+      data: {
+        uuid: 'seed-sale-jul-1',
+        lojaId: loja.id,
+        filialId: filial.id,
+        usuarioId: funcionaria.id,
+        dataHora: new Date('2026-07-15T16:00:00-03:00'),
+        valorTotal: 120.00,
+        formaPagamento: 'DEBITO',
+        observacao: 'Venda de teste Julho 1',
+        itens: {
+          create: [
+            { produtoId: createdProdutos[1].id, quantidade: 1, valorUnitario: createdProdutos[1].preco }
+          ]
+        }
+      }
+    });
+
+    // Venda 4: Brinco (1) = 89.90
+    await prisma.venda.create({
+      data: {
+        uuid: 'seed-sale-jul-2',
+        lojaId: loja.id,
+        filialId: filial.id,
+        usuarioId: funcionaria.id,
+        dataHora: new Date('2026-07-28T11:00:00-03:00'),
+        valorTotal: 89.90,
+        formaPagamento: 'DINHEIRO',
+        observacao: 'Venda de teste Julho 2',
+        itens: {
+          create: [
+            { produtoId: createdProdutos[0].id, quantidade: 1, valorUnitario: createdProdutos[0].preco }
+          ]
+        }
+      }
     });
   }
 

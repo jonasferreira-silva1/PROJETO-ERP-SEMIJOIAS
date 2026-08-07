@@ -24,11 +24,23 @@ import {
   Clock, 
   User, 
   ChevronRight,
+  ChevronLeft,
   TrendingDown,
   Award,
   X,
-  Calendar
+  Calendar,
+  Mail,
+  Building2,
+  Hash,
+  Shield,
+  Edit3,
+  Trash2,
+  Plus,
+  Check,
+  Tag,
+  Package,
 } from 'lucide-react-native';
+import { TextInput } from 'react-native';
 
 // Interface para os itens do gráfico de faturamento
 interface GraficoItem {
@@ -60,6 +72,9 @@ if (Platform.OS !== 'web') {
 export default function DonaPlaceholder() {
   const { user, logout } = useAuth();
   
+  // Controle de Abas
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'relatorios' | 'perfil'>('dashboard');
+
   // Controle de Período Selecionado
   const [periodo, setPeriodo] = useState<'hoje' | 'ontem' | '7dias'>('hoje');
   const periodoRef = useRef(periodo);
@@ -87,8 +102,26 @@ export default function DonaPlaceholder() {
   const [recentSales, setRecentSales] = useState<any[]>([]);
   const [isConnected, setIsConnected] = useState(false);
 
+  // Estados dos Relatórios Mensais
+  const [reportData, setReportData] = useState<any>(null);
+  const [isLoadingReport, setIsLoadingReport] = useState(false);
+  const [reportMes, setReportMes] = useState<number>(new Date().getMonth() + 1);
+  const [reportAno, setReportAno] = useState<number>(new Date().getFullYear());
+
   // Referência do debounce timer
   const debounceTimerRef = useRef<any | null>(null);
+
+  // Estados de Gestão de Produtos (Dona)
+  interface Produto { id: number; nome: string; categoria: string; preco: number; estoque: number; }
+  const [produtos, setProdutos] = useState<Produto[]>([]);
+  const [isLoadingProdutos, setIsLoadingProdutos] = useState(false);
+  const [isProdutoModalVisible, setIsProdutoModalVisible] = useState(false);
+  const [editingProduto, setEditingProduto] = useState<Produto | null>(null);
+  const [formNome, setFormNome] = useState('');
+  const [formCategoria, setFormCategoria] = useState('Brincos');
+  const [formPreco, setFormPreco] = useState('');
+  const [formEstoque, setFormEstoque] = useState('');
+  const [isSavingProduto, setIsSavingProduto] = useState(false);
 
   // Inicializa o WebSocket e os listeners ao montar
   useEffect(() => {
@@ -186,6 +219,55 @@ export default function DonaPlaceholder() {
     }
   };
 
+  // Recarrega o Relatório Mensal quando a aba ou mês/ano mudar
+  useEffect(() => {
+    if (activeTab === 'relatorios') {
+      loadReportData();
+    }
+  }, [activeTab, reportMes, reportAno]);
+  const loadReportData = async () => {
+    setIsLoadingReport(true);
+    try {
+      const response = await api.get('/relatorios/mensal', {
+        params: { mes: reportMes, ano: reportAno }
+      });
+      setReportData(response.data);
+    } catch (err) {
+      console.log('Erro ao carregar dados do relatório mensal:', err);
+      Alert.alert('Erro', 'Não foi possível carregar os relatórios mensais.');
+    } finally {
+      setIsLoadingReport(false);
+    }
+  };
+
+  const handlePrevMonth = () => {
+    setReportMes((prevMes) => {
+      if (prevMes === 1) {
+        setReportAno((prevAno) => prevAno - 1);
+        return 12;
+      }
+      return prevMes - 1;
+    });
+  };
+
+  const handleNextMonth = () => {
+    setReportMes((prevMes) => {
+      if (prevMes === 12) {
+        setReportAno((prevAno) => prevAno + 1);
+        return 1;
+      }
+      return prevMes + 1;
+    });
+  };
+
+  const getNomeMes = (m: number) => {
+    const meses = [
+      'Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
+      'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'
+    ];
+    return meses[m - 1] || '';
+  };
+
   // Registra as credenciais de Push Notification do dispositivo
   const registerForPush = async (authToken: string) => {
     try {
@@ -219,6 +301,83 @@ export default function DonaPlaceholder() {
     const timeStr = d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
     return `${dateStr} às ${timeStr}`;
   };
+
+  // ── Gestão de Produtos ──────────────────────────────────────────────────────
+
+  const loadProdutos = async () => {
+    setIsLoadingProdutos(true);
+    try {
+      const response = await api.get('/produtos');
+      setProdutos(response.data);
+    } catch (err) {
+      console.log('Erro ao carregar produtos:', err);
+    } finally {
+      setIsLoadingProdutos(false);
+    }
+  };
+
+  const openCreateProduto = () => {
+    setEditingProduto(null);
+    setFormNome('');
+    setFormCategoria('Brincos');
+    setFormPreco('');
+    setFormEstoque('');
+    setIsProdutoModalVisible(true);
+  };
+
+  const openEditProduto = (produto: Produto) => {
+    setEditingProduto(produto);
+    setFormNome(produto.nome);
+    setFormCategoria(produto.categoria);
+    setFormPreco(produto.preco.toString().replace('.', ','));
+    setFormEstoque(produto.estoque.toString());
+    setIsProdutoModalVisible(true);
+  };
+
+  const handleSaveProduto = async () => {
+    const nome = formNome.trim();
+    const preco = parseFloat(formPreco.replace(',', '.'));
+    const estoque = parseInt(formEstoque, 10);
+    if (!nome || nome.length < 2) { Alert.alert('Campo obrigatório', 'Informe o nome da peça (mínimo 2 caracteres).'); return; }
+    if (isNaN(preco) || preco <= 0) { Alert.alert('Preço inválido', 'Informe um preço maior que R$ 0,00.'); return; }
+    if (isNaN(estoque) || estoque < 0) { Alert.alert('Estoque inválido', 'Informe um estoque válido (0 ou mais).'); return; }
+    setIsSavingProduto(true);
+    try {
+      if (editingProduto) {
+        await api.patch(`/produtos/${editingProduto.id}`, { nome, categoria: formCategoria, preco, estoque });
+        Alert.alert('Sucesso', 'Peça atualizada!');
+      } else {
+        await api.post('/produtos', { nome, categoria: formCategoria, preco, estoque });
+        Alert.alert('Sucesso', 'Peça cadastrada!');
+      }
+      setIsProdutoModalVisible(false);
+      loadProdutos();
+    } catch (error: any) {
+      Alert.alert('Erro', error.response?.data?.message || 'Erro ao salvar a peça.');
+    } finally {
+      setIsSavingProduto(false);
+    }
+  };
+
+  const handleDeleteProduto = (produto: Produto) => {
+    Alert.alert(
+      'Excluir Peça',
+      `Excluir "${produto.nome}"? Esta ação não pode ser desfeita.`,
+      [
+        { text: 'Cancelar', style: 'cancel' },
+        { text: 'Excluir', style: 'destructive', onPress: async () => {
+          try {
+            await api.delete(`/produtos/${produto.id}`);
+            loadProdutos();
+          } catch (error: any) {
+            Alert.alert('Erro', error.response?.data?.message || 'Erro ao excluir.');
+          }
+        }},
+      ]
+    );
+  };
+
+  // ────────────────────────────────────────────────────────────────────────────
 
   // Filtra as vendas pertencentes a uma barra do gráfico selecionada
   const getFilteredSalesForChart = () => {
@@ -286,209 +445,458 @@ export default function DonaPlaceholder() {
     <View className="flex-1 bg-adorne-background">
       {/* Header Premium */}
       <View className="bg-white px-6 pt-12 pb-4 shadow-sm border-b border-adorne-gold/10 flex-row justify-between items-center">
-        <View className="flex-row items-center">
+        <TouchableOpacity onPress={() => setActiveTab('perfil')} className="flex-row items-center active:opacity-75">
           <View className="w-9 h-9 rounded-full border border-adorne-gold items-center justify-center bg-adorne-background mr-2.5">
             <Gem size={16} color="#0B3A34" />
           </View>
           <View>
             <Text className="text-xs text-adorne-gray font-semibold">Semijoias Adorne</Text>
-            <Text className="text-sm font-bold text-adorne-teal">{user?.nome} (Dona)</Text>
+            <Text className="text-sm font-bold text-adorne-teal">{user?.nome} <Text className="text-[10px] font-normal text-adorne-gray">(Dona)</Text></Text>
           </View>
-        </View>
-        <TouchableOpacity 
-          onPress={logout}
-          className="w-9 h-9 rounded-xl border border-red-100 items-center justify-center bg-red-50/40 active:opacity-75"
-        >
-          <LogOut size={16} color="#EF4444" />
         </TouchableOpacity>
-      </View>
-
-      <ScrollView className="flex-1" contentContainerStyle={{ paddingBottom: 32 }} showsVerticalScrollIndicator={false}>
-        
-        {/* Painel de Status */}
-        <View className="px-6 pt-4 flex-row items-center justify-between">
-          <View className="flex-row items-center">
-            <View className={`w-2.5 h-2.5 rounded-full mr-2 ${isConnected ? 'bg-emerald-500 animate-pulse' : 'bg-red-500'}`} />
-            <Text className="text-xs text-adorne-gray font-bold">
-              {isConnected ? 'Canal de tempo real ativo' : 'Reconectando canal...'}
-            </Text>
-          </View>
+        <View className="flex-row items-center">
+          <TouchableOpacity onPress={() => setActiveTab('perfil')} className="w-9 h-9 rounded-xl border border-adorne-gold/20 items-center justify-center bg-adorne-background/60 mr-2 active:opacity-75">
+            <User size={16} color="#0B3A34" />
+          </TouchableOpacity>
           <TouchableOpacity 
-            onPress={() => loadDashboardData(periodo)}
-            className="p-1 rounded-lg border border-adorne-gold/20 bg-white"
+            onPress={logout}
+            className="w-9 h-9 rounded-xl border border-red-100 items-center justify-center bg-red-50/40 active:opacity-75"
           >
-            <RefreshCwIcon size={12} color="#0B3A34" />
+            <LogOut size={16} color="#EF4444" />
           </TouchableOpacity>
         </View>
+      </View>
 
-        {/* Seletores de Período (Tabs Estilo Chip) */}
-        <View className="px-6 pt-4 flex-row justify-between">
-          {(['hoje', 'ontem', '7dias'] as const).map(p => (
-            <TouchableOpacity
-              key={p}
-              onPress={() => setPeriodo(p)}
-              className={`px-6 py-2.5 rounded-full border flex-1 mx-1 items-center justify-center ${
-                periodo === p 
-                  ? 'bg-adorne-teal border-adorne-teal shadow-sm' 
-                  : 'bg-white border-adorne-gold/20'
-              }`}
-            >
-              <Text className={`text-xs font-bold ${periodo === p ? 'text-white' : 'text-adorne-gray'}`}>
-                {p === 'hoje' ? 'Hoje' : p === 'ontem' ? 'Ontem' : '7 Dias'}
-              </Text>
-            </TouchableOpacity>
-          ))}
-        </View>
-
-        {/* KPIs Grid */}
-        {isLoadingDashboard ? (
-          <View className="py-24 justify-center items-center">
-            <ActivityIndicator size="large" color="#0B3A34" />
-          </View>
-        ) : (
-          <View className="p-6">
-            
-            {/* KPI Destaque: Faturamento Total */}
-            <View className="bg-white border border-adorne-gold/15 rounded-3xl p-6 shadow-sm mb-4">
-              <View className="flex-row justify-between items-center mb-3">
-                <View className="bg-emerald-50 w-10 h-10 rounded-xl items-center justify-center">
-                  <DollarSign size={20} color="#059669" />
-                </View>
-                <View className="bg-adorne-background px-3 py-1 rounded-full border border-adorne-gold/10">
-                  <Text className="text-[10px] text-adorne-teal font-extrabold uppercase">Faturamento</Text>
-                </View>
-              </View>
-              <Text className="text-[10px] font-bold text-adorne-gray uppercase tracking-wider">Faturamento do Período</Text>
-              <Text className="text-3xl font-black text-adorne-teal mt-1 tracking-tight">
-                {formatCurrency(faturamento)}
+      {/* ===== ABA DASHBOARD ===== */}
+      {activeTab === 'dashboard' && (
+        <ScrollView className="flex-1" contentContainerStyle={{ paddingBottom: 32 }} showsVerticalScrollIndicator={false}>
+          
+          {/* Painel de Status */}
+          <View className="px-6 pt-4 flex-row items-center justify-between">
+            <View className="flex-row items-center">
+              <View className={`w-2.5 h-2.5 rounded-full mr-2 ${isConnected ? 'bg-emerald-500 animate-pulse' : 'bg-red-500'}`} />
+              <Text className="text-xs text-adorne-gray font-bold">
+                {isConnected ? 'Canal de tempo real ativo' : 'Reconectando canal...'}
               </Text>
             </View>
+            <TouchableOpacity 
+              onPress={() => loadDashboardData(periodo)}
+              className="p-1 rounded-lg border border-adorne-gold/20 bg-white"
+            >
+              <RefreshCwIcon size={12} color="#0B3A34" />
+            </TouchableOpacity>
+          </View>
 
-            {/* Grid Secundária: Vendas e Ticket Médio */}
-            <View className="flex-row justify-between">
+          {/* Seletores de Período (Tabs Estilo Chip) */}
+          <View className="px-6 pt-4 flex-row justify-between">
+            {(['hoje', 'ontem', '7dias'] as const).map(p => (
+              <TouchableOpacity
+                key={p}
+                onPress={() => setPeriodo(p)}
+                className={`px-6 py-2.5 rounded-full border flex-1 mx-1 items-center justify-center ${
+                  periodo === p 
+                    ? 'bg-adorne-teal border-adorne-teal shadow-sm' 
+                    : 'bg-white border-adorne-gold/20'
+                }`}
+              >
+                <Text className={`text-xs font-bold ${periodo === p ? 'text-white' : 'text-adorne-gray'}`}>
+                  {p === 'hoje' ? 'Hoje' : p === 'ontem' ? 'Ontem' : '7 Dias'}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+
+          {/* KPIs Grid */}
+          {isLoadingDashboard ? (
+            <View className="py-24 justify-center items-center">
+              <ActivityIndicator size="large" color="#0B3A34" />
+            </View>
+          ) : (
+            <View className="p-6">
               
-              {/* Card Vendas */}
-              <View className="bg-white border border-adorne-gold/15 rounded-3xl p-5 w-[48%] shadow-sm">
-                <View className="bg-blue-50 w-9 h-9 rounded-lg items-center justify-center mb-3">
-                  <TrendingUp size={18} color="#2563EB" />
+              {/* KPI Destaque: Faturamento Total */}
+              <View className="bg-white border border-adorne-gold/15 rounded-3xl p-6 shadow-sm mb-4">
+                <View className="flex-row justify-between items-center mb-3">
+                  <View className="bg-emerald-50 w-10 h-10 rounded-xl items-center justify-center">
+                    <DollarSign size={20} color="#059669" />
+                  </View>
+                  <View className="bg-adorne-background px-3 py-1 rounded-full border border-adorne-gold/10">
+                    <Text className="text-[10px] text-adorne-teal font-extrabold uppercase">Faturamento</Text>
+                  </View>
                 </View>
-                <Text className="text-[9px] font-bold text-adorne-gray uppercase tracking-wider">Quantidade Vendas</Text>
-                <Text className="text-xl font-black text-adorne-teal mt-1">{totalVendas}</Text>
-              </View>
-
-              {/* Card Ticket Médio */}
-              <View className="bg-white border border-adorne-gold/15 rounded-3xl p-5 w-[48%] shadow-sm">
-                <View className="bg-purple-50 w-9 h-9 rounded-lg items-center justify-center mb-3">
-                  <Award size={18} color="#7C3AED" />
-                </View>
-                <Text className="text-[9px] font-bold text-adorne-gray uppercase tracking-wider">Ticket Médio</Text>
-                <Text className="text-xl font-black text-adorne-teal mt-1 leading-none">
-                  {formatCurrency(ticketMedio)}
+                <Text className="text-[10px] font-bold text-adorne-gray uppercase tracking-wider">Faturamento do Período</Text>
+                <Text className="text-3xl font-black text-adorne-teal mt-1 tracking-tight">
+                  {formatCurrency(faturamento)}
                 </Text>
               </View>
 
-            </View>
-
-            {/* Gráfico de Barras Customizado Responsivo */}
-            <View className="bg-white border border-adorne-gold/15 rounded-3xl p-6 shadow-sm mt-4">
-              <Text className="text-xs font-bold text-adorne-teal uppercase tracking-wider mb-4 border-b border-adorne-background pb-2">
-                📈 Curva de Desempenho ({periodo === '7dias' ? 'Dia a Dia' : 'Faixas Horárias'})
-              </Text>
-              
-              {graficoData.length === 0 ? (
-                <View className="py-12 items-center justify-center">
-                  <Text className="text-xs text-adorne-gray italic">Sem dados gráficos para exibir</Text>
+              {/* Grid Secundária: Vendas e Ticket Médio */}
+              <View className="flex-row justify-between">
+                
+                {/* Card Vendas */}
+                <View className="bg-white border border-adorne-gold/15 rounded-3xl p-5 w-[48%] shadow-sm">
+                  <View className="bg-blue-50 w-9 h-9 rounded-lg items-center justify-center mb-3">
+                    <TrendingUp size={18} color="#2563EB" />
+                  </View>
+                  <Text className="text-[9px] font-bold text-adorne-gray uppercase tracking-wider">Quantidade Vendas</Text>
+                  <Text className="text-xl font-black text-adorne-teal mt-1">{totalVendas}</Text>
                 </View>
-              ) : (
-                <View className="h-44 flex-row items-end justify-between pt-6 px-1">
-                  {graficoData.map((item, index) => {
-                    // Calcula altura proporcional de até 120 pixels
-                    const alturaBarra = maxGraficoValue > 0 ? (item.valor / maxGraficoValue) * 110 : 0;
-                    
-                    return (
-                      <TouchableOpacity 
-                        key={index} 
-                        className="items-center flex-1 mx-0.5"
-                        onPress={() => {
-                          if (item.valor > 0) {
-                            setSelectedChartBarLabel(item.label);
-                            setIsChartSalesModalVisible(true);
-                          }
-                        }}
-                        disabled={item.valor === 0}
-                        activeOpacity={0.7}
-                      >
-                        
-                        {/* Indicador do valor da barra */}
-                        {item.valor > 0 && (
-                          <Text className="text-[7px] font-bold text-emerald-700 bg-emerald-50 px-1 rounded-sm mb-1 text-center leading-none">
-                            {item.valor.toFixed(0)}
-                          </Text>
-                        )}
 
-                        {/* Barra Reativa */}
-                        <View 
-                          style={{ height: Math.max(alturaBarra, 4) }} // Altura mínima de 4px se for 0 pra manter visual estruturado
-                          className={`w-full rounded-t-md ${
-                            item.valor > 0 ? 'bg-adorne-teal shadow-xs' : 'bg-adorne-gold/20'
-                          }`}
-                        />
-
-                        {/* Label do Eixo X */}
-                        <Text className="text-[8px] text-adorne-gray font-bold mt-2 text-center" style={{ fontSize: 8 }}>
-                          {item.label}
-                        </Text>
-                      </TouchableOpacity>
-                    );
-                  })}
+                {/* Card Ticket Médio */}
+                <View className="bg-white border border-adorne-gold/15 rounded-3xl p-5 w-[48%] shadow-sm">
+                  <View className="bg-purple-50 w-9 h-9 rounded-lg items-center justify-center mb-3">
+                    <Award size={18} color="#7C3AED" />
+                  </View>
+                  <Text className="text-[9px] font-bold text-adorne-gray uppercase tracking-wider">Ticket Médio</Text>
+                  <Text className="text-xl font-black text-adorne-teal mt-1 leading-none">
+                    {formatCurrency(ticketMedio)}
+                  </Text>
                 </View>
-              )}
-            </View>
 
-            {/* Feed ao Vivo / Últimas Atividades */}
-            <View className="mt-6">
-              <View className="flex-row items-center mb-3">
-                <Bell size={14} color="#0B3A34" className="mr-1.5" />
-                <Text className="text-sm font-bold text-adorne-teal">Vendas Recentes</Text>
               </View>
 
-              {recentSales.length === 0 ? (
-                <View className="bg-white border border-dashed border-adorne-gold/30 rounded-3xl p-8 items-center justify-center">
-                  <Text className="text-adorne-gray text-xs font-semibold">Nenhuma venda registrada</Text>
+              {/* Gráfico de Barras Customizado Responsivo */}
+              <View className="bg-white border border-adorne-gold/15 rounded-3xl p-6 shadow-sm mt-4">
+                <Text className="text-xs font-bold text-adorne-teal uppercase tracking-wider mb-4 border-b border-adorne-background pb-2">
+                  📈 Curva de Desempenho ({periodo === '7dias' ? 'Dia a Dia' : 'Faixas Horárias'})
+                </Text>
+                
+                {graficoData.length === 0 ? (
+                  <View className="py-12 items-center justify-center">
+                    <Text className="text-xs text-adorne-gray italic">Sem dados gráficos para exibir</Text>
+                  </View>
+                ) : (
+                  <View className="h-44 flex-row items-end justify-between pt-6 px-1">
+                    {graficoData.map((item, index) => {
+                      // Calcula altura proporcional de até 120 pixels
+                      const alturaBarra = maxGraficoValue > 0 ? (item.valor / maxGraficoValue) * 110 : 0;
+                      
+                      return (
+                        <TouchableOpacity 
+                          key={index} 
+                          className="items-center flex-1 mx-0.5"
+                          onPress={() => {
+                            if (item.valor > 0) {
+                              setSelectedChartBarLabel(item.label);
+                              setIsChartSalesModalVisible(true);
+                            }
+                          }}
+                          disabled={item.valor === 0}
+                          activeOpacity={0.7}
+                        >
+                          
+                          {/* Indicador do valor da barra */}
+                          {item.valor > 0 && (
+                            <Text className="text-[7px] font-bold text-emerald-700 bg-emerald-50 px-1 rounded-sm mb-1 text-center leading-none">
+                              {item.valor.toFixed(0)}
+                            </Text>
+                          )}
+
+                          {/* Barra Reativa */}
+                          <View 
+                            style={{ height: Math.max(alturaBarra, 4) }} // Altura mínima de 4px se for 0 pra manter visual estruturado
+                            className={`w-full rounded-t-md ${
+                              item.valor > 0 ? 'bg-adorne-teal shadow-xs' : 'bg-adorne-gold/20'
+                            }`}
+                          />
+
+                          {/* Label do Eixo X */}
+                          <Text className="text-[8px] text-adorne-gray font-bold mt-2 text-center" style={{ fontSize: 8 }}>
+                            {item.label}
+                          </Text>
+                        </TouchableOpacity>
+                      );
+                    })}
+                  </View>
+                )}
+              </View>
+
+              {/* Feed ao Vivo / Últimas Atividades */}
+              <View className="mt-6">
+                <View className="flex-row items-center mb-3">
+                  <Bell size={14} color="#0B3A34" className="mr-1.5" />
+                  <Text className="text-sm font-bold text-adorne-teal">Vendas Recentes</Text>
                 </View>
-              ) : (
-                recentSales.map((item) => (
-                  <TouchableOpacity 
-                    key={item.id} 
-                    onPress={() => {
-                      setSelectedSale(item);
-                      setIsSaleModalVisible(true);
-                    }}
-                    className="bg-white rounded-2xl p-4 mb-2.5 border border-adorne-gold/15 shadow-xs flex-row justify-between items-center active:opacity-90"
-                  >
-                    <View className="flex-1 pr-2">
-                      <View className="flex-row items-center mb-1">
-                        <Clock size={10} color="#607371" className="mr-1" />
-                        <Text className="text-[9px] text-adorne-gray font-semibold">{formatDate(item.createdAt)}</Text>
+
+                {recentSales.length === 0 ? (
+                  <View className="bg-white border border-dashed border-adorne-gold/30 rounded-3xl p-8 items-center justify-center">
+                    <Text className="text-adorne-gray text-xs font-semibold">Nenhuma venda registrada</Text>
+                  </View>
+                ) : (
+                  recentSales.map((item) => (
+                    <TouchableOpacity 
+                      key={item.id} 
+                      onPress={() => {
+                        setSelectedSale(item);
+                        setIsSaleModalVisible(true);
+                      }}
+                      className="bg-white rounded-2xl p-4 mb-2.5 border border-adorne-gold/15 shadow-xs flex-row justify-between items-center active:opacity-90"
+                    >
+                      <View className="flex-1 pr-2">
+                        <View className="flex-row items-center mb-1">
+                          <Clock size={10} color="#607371" className="mr-1" />
+                          <Text className="text-[9px] text-adorne-gray font-semibold">{formatDate(item.createdAt)}</Text>
+                        </View>
+                        <Text className="text-xs font-bold text-adorne-text">{item.cliente?.nome || 'Cliente Avulso'}</Text>
+                        <Text className="text-[10px] text-adorne-gray mt-0.5">Vendedora: {item.usuario?.nome || 'Funcionária'}</Text>
                       </View>
-                      <Text className="text-xs font-bold text-adorne-text">{item.cliente?.nome || 'Cliente Avulso'}</Text>
-                      <Text className="text-[10px] text-adorne-gray mt-0.5">Vendedora: {item.usuario?.nome || 'Funcionária'}</Text>
-                    </View>
-                    <View className="flex-row items-center">
-                      <View className="items-end mr-2">
-                        <Text className="text-sm font-black text-emerald-600">{formatCurrency(item.valorTotal)}</Text>
-                        <Text className="text-[9px] text-adorne-gray uppercase font-bold mt-1 tracking-wider">{item.formaPagamento}</Text>
+                      <View className="flex-row items-center">
+                        <View className="items-end mr-2">
+                          <Text className="text-sm font-black text-emerald-600">{formatCurrency(item.valorTotal)}</Text>
+                          <Text className="text-[9px] text-adorne-gray uppercase font-bold mt-1 tracking-wider">{item.formaPagamento}</Text>
+                        </View>
+                        <ChevronRight size={14} color="#A0B0AE" />
                       </View>
-                      <ChevronRight size={14} color="#A0B0AE" />
-                    </View>
-                  </TouchableOpacity>
-                ))
-              )}
+                    </TouchableOpacity>
+                  ))
+                )}
+              </View>
+
+            </View>
+          )}
+        </ScrollView>
+      )}
+
+      {/* ===== ABA RELATÓRIOS ===== */}
+      {activeTab === 'relatorios' && (
+        <ScrollView className="flex-1" contentContainerStyle={{ paddingBottom: 32 }} showsVerticalScrollIndicator={false}>
+          
+          {/* Cabeçalho do Relatório */}
+          <View className="px-6 pt-4 flex-row items-center justify-between">
+            <Text className="text-base font-bold text-adorne-teal">Relatório Mensal</Text>
+            <TouchableOpacity 
+              onPress={loadReportData}
+              className="p-1 rounded-lg border border-adorne-gold/20 bg-white"
+            >
+              <RefreshCwIcon size={12} color="#0B3A34" />
+            </TouchableOpacity>
+          </View>
+
+          {/* Seletor de Mês e Ano */}
+          <View className="px-6 pt-4 flex-row justify-between items-center">
+            <TouchableOpacity 
+              onPress={handlePrevMonth}
+              className="w-10 h-10 rounded-full border border-adorne-gold/20 bg-white items-center justify-center active:opacity-75"
+            >
+              <ChevronLeft size={20} color="#0B3A34" />
+            </TouchableOpacity>
+
+            <View className="flex-row items-center">
+              <Calendar size={18} color="#0B3A34" className="mr-2" />
+              <Text className="text-base font-extrabold text-adorne-teal">
+                {getNomeMes(reportMes)} {reportAno}
+              </Text>
             </View>
 
+            <TouchableOpacity 
+              onPress={handleNextMonth}
+              className="w-10 h-10 rounded-full border border-adorne-gold/20 bg-white items-center justify-center active:opacity-75"
+            >
+              <ChevronRight size={20} color="#0B3A34" />
+            </TouchableOpacity>
           </View>
-        )}
-      </ScrollView>
+
+          {/* Dados do Relatório */}
+          {isLoadingReport ? (
+            <View className="py-24 justify-center items-center">
+              <ActivityIndicator size="large" color="#0B3A34" />
+            </View>
+          ) : reportData ? (
+            <View className="p-6">
+              
+              {/* KPI Faturamento */}
+              <View className="bg-white border border-adorne-gold/15 rounded-3xl p-6 shadow-sm mb-4">
+                <View className="flex-row justify-between items-center mb-3">
+                  <View className="bg-emerald-50 w-10 h-10 rounded-xl items-center justify-center">
+                    <DollarSign size={20} color="#059669" />
+                  </View>
+                  <View className="bg-adorne-background px-3 py-1 rounded-full border border-adorne-gold/10">
+                    <Text className="text-[10px] text-adorne-teal font-extrabold uppercase">Faturamento</Text>
+                  </View>
+                </View>
+                <Text className="text-[10px] font-bold text-adorne-gray uppercase tracking-wider">Faturamento do Mês</Text>
+                <Text className="text-3xl font-black text-adorne-teal mt-1 tracking-tight">
+                  {formatCurrency(reportData.faturamento)}
+                </Text>
+              </View>
+
+              {/* Grid Secundária */}
+              <View className="flex-row justify-between mb-4">
+                
+                {/* Comparação com Mês Anterior */}
+                <View className="bg-white border border-adorne-gold/15 rounded-3xl p-5 w-[48%] shadow-sm justify-between">
+                  <View className="bg-blue-50 w-8 h-8 rounded-lg items-center justify-center mb-3">
+                    {reportData.variacaoPercentual !== null && reportData.variacaoPercentual < 0 ? (
+                      <TrendingDown size={16} color="#EF4444" />
+                    ) : (
+                      <TrendingUp size={16} color="#059669" />
+                    )}
+                  </View>
+                  <Text className="text-[9px] font-bold text-adorne-gray uppercase tracking-wider">Comparação Mês Ant.</Text>
+                  {reportData.variacaoPercentual === null ? (
+                    <Text className="text-[10px] font-bold text-adorne-gray/70 italic mt-1">Sem dados do mês anterior</Text>
+                  ) : (
+                    <Text className={`text-base font-black mt-1 ${reportData.variacaoPercentual >= 0 ? 'text-emerald-600' : 'text-red-500'}`}>
+                      {reportData.variacaoPercentual >= 0 ? '+' : ''}{reportData.variacaoPercentual.toFixed(1).replace('.', ',')}%
+                    </Text>
+                  )}
+                </View>
+
+                {/* Vendas Realizadas */}
+                <View className="bg-white border border-adorne-gold/15 rounded-3xl p-5 w-[48%] shadow-sm justify-between">
+                  <View className="bg-purple-50 w-8 h-8 rounded-lg items-center justify-center mb-3">
+                    <Award size={16} color="#7C3AED" />
+                  </View>
+                  <Text className="text-[9px] font-bold text-adorne-gray uppercase tracking-wider">Vendas Realizadas</Text>
+                  <Text className="text-base font-black text-adorne-teal mt-1">{reportData.totalVendas}</Text>
+                </View>
+
+              </View>
+
+              {/* Ticket Médio */}
+              <View className="bg-white border border-adorne-gold/15 rounded-3xl p-5 shadow-sm mb-4 flex-row justify-between items-center">
+                <View>
+                  <Text className="text-[9px] font-bold text-adorne-gray uppercase tracking-wider">Ticket Médio das Peças</Text>
+                  <Text className="text-xl font-black text-adorne-teal mt-1">{formatCurrency(reportData.ticketMedio)}</Text>
+                </View>
+                <View className="bg-amber-50 w-10 h-10 rounded-xl items-center justify-center">
+                  <Sparkles size={20} color="#D97706" />
+                </View>
+              </View>
+
+              {/* Gráfico Diário Scrollable */}
+              <View className="bg-white border border-adorne-gold/15 rounded-3xl p-6 shadow-sm">
+                <Text className="text-xs font-bold text-adorne-teal uppercase tracking-wider mb-4 border-b border-adorne-background pb-2">
+                  📈 Faturamento Diário no Mês
+                </Text>
+                
+                {reportData.grafico.length === 0 ? (
+                  <View className="py-12 items-center justify-center">
+                    <Text className="text-xs text-adorne-gray italic">Sem dados para exibir</Text>
+                  </View>
+                ) : (
+                  <ScrollView horizontal={true} showsHorizontalScrollIndicator={false} className="pt-2">
+                    <View className="h-44 flex-row items-end pb-2">
+                      {reportData.grafico.map((item: any, index: number) => {
+                        const maxVal = Math.max(...reportData.grafico.map((g: any) => g.valor), 1);
+                        const alturaBarra = maxVal > 0 ? (item.valor / maxVal) * 110 : 0;
+                        const hasVenda = item.valor > 0;
+                        return (
+                          <View key={index} className="items-center w-10 mx-1">
+                            {/* Indicador do valor da barra */}
+                            {hasVenda && (
+                              <Text className="text-[7px] font-bold text-emerald-700 bg-emerald-50 px-1 rounded-sm mb-1 text-center leading-none">
+                                {item.valor.toFixed(0)}
+                              </Text>
+                            )}
+
+                            {/* Barra */}
+                            <View 
+                              style={{ height: Math.max(alturaBarra, 4) }}
+                              className={`w-5 rounded-t-md ${
+                                hasVenda ? 'bg-adorne-teal shadow-xs' : 'bg-adorne-gold/20'
+                              }`}
+                            />
+
+                            {/* Label do Eixo X */}
+                            <Text className="text-[8px] text-adorne-gray font-bold mt-2 text-center" style={{ fontSize: 8 }}>
+                              {item.label}
+                            </Text>
+                          </View>
+                        );
+                      })}
+                    </View>
+                  </ScrollView>
+                )}
+              </View>
+
+            </View>
+          ) : (
+            <View className="py-24 items-center justify-center">
+              <Text className="text-xs text-adorne-gray italic">Não foi possível recuperar dados de relatório</Text>
+            </View>
+          )}
+
+        </ScrollView>
+      )}
+
+      {/* ===== ABA PERFIL ===== */}
+      {activeTab === 'perfil' && (
+        <ScrollView className="flex-1" contentContainerStyle={{ paddingBottom: 40 }}>
+          <View className="p-6">
+
+            {/* Avatar */}
+            <View className="items-center mb-6">
+              <View className="w-20 h-20 rounded-full bg-adorne-teal border-4 border-adorne-gold/30 items-center justify-center mb-3 shadow-lg">
+                <Text className="text-3xl font-black text-white">{user?.nome?.charAt(0)?.toUpperCase() || '?'}</Text>
+              </View>
+              <Text className="text-xl font-black text-adorne-teal">{user?.nome}</Text>
+              <View className="mt-1.5 px-4 py-1 rounded-full bg-adorne-teal/10 border border-adorne-teal/20">
+                <Text className="text-[11px] font-extrabold uppercase tracking-wider text-adorne-teal">👑 Proprietária</Text>
+              </View>
+            </View>
+
+            {/* Dados */}
+            <View className="bg-white border border-adorne-gold/15 rounded-3xl p-5 shadow-sm mb-4">
+              <Text className="text-xs font-bold text-adorne-teal uppercase tracking-wider mb-4 pb-2 border-b border-adorne-background">Informações do Perfil</Text>
+
+              <View className="flex-row items-center py-3 border-b border-adorne-background">
+                <View className="w-8 h-8 rounded-lg bg-adorne-background items-center justify-center mr-3"><User size={16} color="#0B3A34" /></View>
+                <View className="flex-1">
+                  <Text className="text-[9px] font-bold text-adorne-gray uppercase tracking-wider">Nome Completo</Text>
+                  <Text className="text-sm font-bold text-adorne-text mt-0.5">{user?.nome || '—'}</Text>
+                </View>
+              </View>
+
+              <View className="flex-row items-center py-3 border-b border-adorne-background">
+                <View className="w-8 h-8 rounded-lg bg-adorne-background items-center justify-center mr-3"><Mail size={16} color="#0B3A34" /></View>
+                <View className="flex-1">
+                  <Text className="text-[9px] font-bold text-adorne-gray uppercase tracking-wider">E-mail</Text>
+                  <Text className="text-sm font-bold text-adorne-text mt-0.5">{user?.email || '—'}</Text>
+                </View>
+              </View>
+
+              <View className="flex-row items-center py-3 border-b border-adorne-background">
+                <View className="w-8 h-8 rounded-lg bg-adorne-background items-center justify-center mr-3"><Building2 size={16} color="#0B3A34" /></View>
+                <View className="flex-1">
+                  <Text className="text-[9px] font-bold text-adorne-gray uppercase tracking-wider">Loja</Text>
+                  <Text className="text-sm font-bold text-adorne-text mt-0.5">Semijoias Adorne</Text>
+                </View>
+              </View>
+
+              <View className="flex-row items-center py-3">
+                <View className="w-8 h-8 rounded-lg bg-adorne-background items-center justify-center mr-3"><Shield size={16} color="#0B3A34" /></View>
+                <View className="flex-1">
+                  <Text className="text-[9px] font-bold text-adorne-gray uppercase tracking-wider">Nível de Acesso</Text>
+                  <Text className="text-sm font-bold text-adorne-text mt-0.5">Administrador Total</Text>
+                </View>
+              </View>
+            </View>
+
+            {/* Acesso rápido */}
+            <View className="bg-white border border-adorne-gold/15 rounded-3xl p-5 shadow-sm mb-4">
+              <Text className="text-xs font-bold text-adorne-teal uppercase tracking-wider mb-3 pb-2 border-b border-adorne-background">Acesso Rápido</Text>
+              <TouchableOpacity onPress={() => setActiveTab('dashboard')} className="flex-row items-center justify-between py-3 border-b border-adorne-background active:opacity-75">
+                <Text className="text-sm text-adorne-text font-semibold">📊 Painel Analítico</Text>
+                <ChevronRight size={16} color="#607371" />
+              </TouchableOpacity>
+              <TouchableOpacity onPress={() => setActiveTab('relatorios')} className="flex-row items-center justify-between py-3 active:opacity-75">
+                <Text className="text-sm text-adorne-text font-semibold">📅 Relatórios Mensais</Text>
+                <ChevronRight size={16} color="#607371" />
+              </TouchableOpacity>
+            </View>
+
+            <TouchableOpacity
+              onPress={() => Alert.alert('Sair', 'Tem certeza que deseja sair?', [{ text: 'Cancelar', style: 'cancel' }, { text: 'Sair', style: 'destructive', onPress: logout }])}
+              className="bg-red-50 border border-red-200 rounded-2xl p-4 flex-row items-center justify-center active:opacity-90"
+            >
+              <LogOut size={16} color="#EF4444" />
+              <Text className="text-red-600 font-bold text-sm ml-2">Encerrar Sessão</Text>
+            </TouchableOpacity>
+
+          </View>
+        </ScrollView>
+      )}
 
       {/* Modal de Detalhes da Venda */}
       <Modal
@@ -672,6 +1080,48 @@ export default function DonaPlaceholder() {
           </View>
         </View>
       </Modal>
+
+      {/* Barra de Navegação Floating Premium */}
+      <View className="bg-white border-t border-adorne-gold/15 py-3.5 px-6 flex-row justify-around items-center shadow-lg">
+        {/* Aba Painel */}
+        <TouchableOpacity 
+          onPress={() => setActiveTab('dashboard')}
+          className="items-center flex-1"
+        >
+          <View className={`w-12 h-8 rounded-full items-center justify-center mb-0.5 ${activeTab === 'dashboard' ? 'bg-adorne-teal/10' : ''}`}>
+            <TrendingUp size={18} color={activeTab === 'dashboard' ? '#0B3A34' : '#607371'} />
+          </View>
+          <Text className={`text-[9px] font-bold ${activeTab === 'dashboard' ? 'text-adorne-teal' : 'text-adorne-gray'}`}>
+            Painel
+          </Text>
+        </TouchableOpacity>
+
+        {/* Aba Relatórios */}
+        <TouchableOpacity 
+          onPress={() => setActiveTab('relatorios')}
+          className="items-center flex-1"
+        >
+          <View className={`w-12 h-8 rounded-full items-center justify-center mb-0.5 ${activeTab === 'relatorios' ? 'bg-adorne-teal/10' : ''}`}>
+            <Calendar size={18} color={activeTab === 'relatorios' ? '#0B3A34' : '#607371'} />
+          </View>
+          <Text className={`text-[9px] font-bold ${activeTab === 'relatorios' ? 'text-adorne-teal' : 'text-adorne-gray'}`}>
+            Relatórios
+          </Text>
+        </TouchableOpacity>
+
+        {/* Aba Perfil */}
+        <TouchableOpacity 
+          onPress={() => setActiveTab('perfil')}
+          className="items-center flex-1"
+        >
+          <View className={`w-12 h-8 rounded-full items-center justify-center mb-0.5 ${activeTab === 'perfil' ? 'bg-adorne-teal/10' : ''}`}>
+            <User size={18} color={activeTab === 'perfil' ? '#0B3A34' : '#607371'} />
+          </View>
+          <Text className={`text-[9px] font-bold ${activeTab === 'perfil' ? 'text-adorne-teal' : 'text-adorne-gray'}`}>
+            Perfil
+          </Text>
+        </TouchableOpacity>
+      </View>
     </View>
   );
 }

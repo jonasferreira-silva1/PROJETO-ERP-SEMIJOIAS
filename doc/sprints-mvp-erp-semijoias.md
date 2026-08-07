@@ -42,7 +42,7 @@ chore: seed inicial de dados para ambiente de desenvolvimento
 
 ### Tarefas
 - [x] Inicializar o projeto mobile utilizando Expo, NativeWind para estilização e React Navigation.
-- [x] Desenvolver a tela de login (e-mail/senha) integrada à API do backend.
+- [x] Desenvolver tela de login (e-mail/senha) integrada à API do backend.
 - [x] Configurar armazenamento seguro do token JWT através do `Expo SecureStore`.
 - [x] Configurar o cliente TanStack Query com interceptor para injetar o token JWT nos cabeçalhos HTTP.
 - [x] Criar e gerenciar duas stacks de navegação: `FuncionariaStack` e `DonaStack`, selecionadas de forma dinâmica pós-login com base na claim do JWT.
@@ -67,16 +67,16 @@ feat: navegação condicional por role (dona/funcionária)
 **Objetivo:** Permitir que a funcionária registre vendas completas e acompanhe seu próprio histórico.
 
 ### Tarefas
-- [ ] Criar endpoint `POST /vendas` no backend (registra `Venda` + `ItensVenda`, vinculando à filial e ID do usuário autenticado).
-- [ ] Criar endpoint `GET /vendas/minhas` no backend para obter o histórico individual de vendas da funcionária logada.
-- [ ] Desenvolver tela mobile "Nova Venda" contendo: seleção de produtos, quantidade, valor unitário/total, forma de pagamento, nome do cliente (campo de texto opcional) e observações.
-- [ ] Desenvolver tela mobile "Histórico de Vendas" da funcionária com listagem ordenada.
-- [ ] Adicionar validações de dados nas entradas de formulários (ex: usando Zod e React Hook Form).
+- [x] Criar endpoint `POST /vendas` no backend (registra `Venda` + `ItensVenda`, vinculando à filial e ID do usuário autenticado).
+- [x] Criar endpoint `GET /vendas/minhas` no backend para obter o histórico individual de vendas da funcionária logada.
+- [x] Desenvolver tela mobile "Nova Venda" contendo: seleção de produtos, quantidade, valor unitário/total, forma de pagamento, nome do cliente (campo de texto opcional) e observações.
+- [x] Desenvolver tela mobile "Histórico de Vendas" da funcionária com listagem ordenada.
+- [x] Adicionar validações de dados nas entradas de formulários (ex: usando Zod e React Hook Form).
 
 ### Critérios de Aceitação
-- [ ] Registrar venda com múltiplos produtos calcula o valor final total de forma correta e automática no backend.
-- [ ] As vendas finalizadas aparecem instantaneamente na listagem de histórico próprio da funcionária.
-- [ ] Isolamento de dados: funcionárias não possuem privilégio para acessar dados de vendas de outros colaboradores (validar na UI e na API).
+- [x] Registrar venda com múltiplos produtos calcula o valor final total de forma correta e automática no backend.
+- [x] As vendas finalizadas aparecem instantaneamente na listagem de histórico próprio da funcionária.
+- [x] Isolamento de dados: funcionárias não possuem privilégio para acessar dados de vendas de outros colaboradores (validar na UI e na API).
 
 ### Commits Sugeridos
 ```bash
@@ -93,17 +93,17 @@ feat: tela de histórico de vendas da funcionária
 **Objetivo:** Garantir a recepção instantânea das vendas realizadas pela funcionária no aplicativo da dona.
 
 ### Tarefas
-- [ ] Configurar gateway de WebSocket (Socket.io) no NestJS com gerenciamento de conexões em salas segregadas por `lojaId` e `filialId`.
-- [ ] Acionar emissão do evento `venda.criada` no barramento do WebSocket ao salvar novas vendas na API.
-- [ ] Integrar o aplicativo mobile ao canal WebSocket com autenticação ativa do JWT.
-- [ ] Integrar serviço Expo Notifications para emitir notificações push para a dona quando o aplicativo estiver em background.
-- [ ] Desenvolver fallback de polling leve no TanStack Query (refetch a cada 30-60s) se a conexão de rede ou WebSocket cair.
-- [ ] Desenvolver sistema de persistência offline (fila local no app) para guardar vendas e reenviar automaticamente ao restabelecer conexão de rede.
+- [x] Configurar gateway de WebSocket (Socket.io) no NestJS com gerenciamento de conexões em salas segregadas por `lojaId` e `filialId`.
+- [x] Acionar emissão do evento `venda.criada` no barramento do WebSocket ao salvar novas vendas na API.
+- [x] Integrar o aplicativo mobile ao canal WebSocket com autenticação ativa do JWT.
+- [x] Integrar serviço Expo Notifications para emitir notificações push para a dona quando o aplicativo estiver em background.
+- [x] Desenvolver fallback de polling leve no TanStack Query (refetch a cada 30-60s) se a conexão de rede ou WebSocket cair.
+- [x] Desenvolver sistema de persistência offline (fila local no app) para guardar vendas e reenviar automaticamente ao restabelecer conexão de rede.
 
 ### Critérios de Aceitação
-- [ ] Com ambos os apps logados em telas ativas, registrar uma venda no terminal da funcionária atualiza as estatísticas no terminal da dona instantaneamente, sem refresh manual.
-- [ ] Com o aplicativo da dona minimizado ou fechado, uma notificação push avisa sobre a nova venda gerada.
-- [ ] Simular queda na conexão WebSocket e verificar se o sistema de polling temporizado entra em execução como fallback de segurança.
+- [x] Com ambos os apps logados em telas ativas, registrar uma venda no terminal da funcionária atualiza as estatísticas no terminal da dona instantaneamente, sem refresh manual.
+- [x] Com o aplicativo da dona minimizado ou fechado, uma notificação push avisa sobre a nova venda gerada.
+- [x] Simular queda na conexão WebSocket e verificar se o sistema de polling temporizado entra em execução como fallback de segurança.
 
 ### Commits Sugeridos
 ```bash
@@ -120,12 +120,12 @@ feat: fallback de polling e fila local de vendas offline
 **Objetivo:** Permitir à administradora analisar o balanço consolidado e indicadores diários do negócio.
 
 ### Tarefas
-- [ ] Criar endpoint `GET /dashboard/hoje` que compila dados financeiros e de vendas da data corrente (faturamento total, quantidade de itens, ticket médio e distribuição por método de pagamento).
-- [ ] Criar tela mobile de "Dashboard" consumindo o endpoint e vinculando a reatividade ao evento do WebSocket (`venda.criada`).
+- [x] Criar endpoint `GET /dashboard/hoje` que compila dados financeiros e de vendas da data corrente (faturamento total, quantidade de itens, ticket médio e distribuição por método de pagamento).
+- [x] Criar tela mobile de "Dashboard" consumindo o endpoint e criando a reatividade baseada no WebSocket.
 
 ### Critérios de Aceitação
-- [ ] Os dados e valores do dashboard batem matematicamente com o somatório de todas as vendas do banco para o dia.
-- [ ] O dashboard reflete em tempo real novos registros de venda sem necessidade de recarregar a visualização.
+- [x] Os dados e valores do dashboard batem matematicamente com o somatório de todas as vendas do banco para o dia.
+- [x] O dashboard reflete em tempo real novos registros de venda sem necessidade de recarregar a visualização.
 
 ### Commits Sugeridos
 ```bash
@@ -140,13 +140,13 @@ feat: tela de dashboard da dona com atualização em tempo real
 **Objetivo:** Permitir a conferência física e cruzamento de valores recebidos categorizados por forma de pagamento.
 
 ### Tarefas
-- [ ] Criar endpoint `GET /caixa/hoje` que segmenta faturamento por métodos de recebimento (Pix, Dinheiro, Débito, Crédito).
-- [ ] Desenvolver tela "Caixa do Dia" no fluxo da funcionária com dados específicos de sua filial correspondente.
-- [ ] Desenvolver tela "Caixa do Dia" no fluxo da dona mostrando visões unificadas ou detalhadas por filial.
+- [x] Criar endpoint `GET /caixa/hoje` que segmenta faturamento por métodos de recebimento (Pix, Dinheiro, Débito, Crédito).
+- [x] Desenvolver tela "Caixa do Dia" no fluxo da funcionária com dados específicos de sua filial correspondente.
+- [x] Desenvolver tela "Caixa do Dia" no fluxo da dona mostrando visões unificadas ou detalhadas por filial.
 
 ### Critérios de Aceitação
-- [ ] A conciliação de métodos de pagamento bate com a receita global do dashboard.
-- [ ] O acesso aos dados respeita o escopo: funcionária vê apenas dados locais; dona vê todos os canais de recebimento.
+- [x] A conciliação de métodos de pagamento bate com a receita global do dashboard.
+- [x] O acesso aos dados respeita o escopo: funcionária vê apenas dados locais; dona vê todos os canais de recebimento.
 
 ### Commits Sugeridos
 ```bash
@@ -161,12 +161,12 @@ feat: tela de caixa do dia (funcionária e dona)
 **Objetivo:** Apresentar relatórios agregados e comparativos mensais para tomadas de decisão.
 
 ### Tarefas
-- [ ] Criar endpoint `GET /relatorios/mensal?mes=&ano=` calculando o faturamento do mês especificado e gerando comparação percentual com o período anterior.
-- [ ] Desenvolver tela "Relatórios" com gráficos simples e indicadores consolidados no fluxo da dona.
+- [x] Criar endpoint `GET /relatorios/mensal?mes=&ano=` calculando o faturamento do mês especificado e gerando comparação percentual com o período anterior (com suporte a `null` para quando não houver dados históricos).
+- [x] Desenvolver tela "Relatórios" com gráficos simples de barras horizontais roláveis e indicadores consolidados no fluxo da dona.
 
 ### Critérios de Aceitação
-- [ ] Os relatórios do mês batem com o volume total de transações efetuadas e registradas em banco para o período de referência.
-- [ ] A análise percentual de ganho/perda em relação ao mês anterior está correta.
+- [x] Os relatórios do mês batem com o volume total de transações efetuadas e registradas em banco para o período de referência.
+- [x] A análise percentual de ganho/perda em relação ao mês anterior está correta, lidando com fallback nulo em meses sem vendas.
 
 ### Commits Sugeridos
 ```bash
@@ -178,5 +178,5 @@ feat: tela de relatório mensal da dona
 
 ## Encerramento do MVP
 
-- [ ] Gerar tag de versão final do MVP no repositório (`v0.1.0-mvp`).
-- [ ] Colocar o sistema em ambiente real de homologação para testes do dia a dia por algumas semanas antes de iniciar as features listadas no roadmap pós-MVP.
+- [x] Gerar tag de versão final do MVP no repositório (`v0.1.0-mvp`).
+- [x] Colocar o sistema em ambiente real de homologação para testes do dia a dia por algumas semanas antes de iniciar as features listadas no roadmap pós-MVP.

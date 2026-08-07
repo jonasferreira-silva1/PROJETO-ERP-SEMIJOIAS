@@ -38,6 +38,9 @@ Conexões móveis oscilam. Por isso, projetamos o aplicativo mobile com uma **fi
 ### 4. Segurança e Controle de Acesso (RBAC)
 Com autenticação **JWT**, as credenciais decodificadas no token definem não apenas a interface mobile do usuário (`DonaStack` vs `FuncionariaStack`), mas também as permissões a nível de backend utilizando **NestJS Guards** para impedir que funcionários visualizem dados consolidados de faturamento.
 
+### 5. Controle de Caixa e Conciliação Financeira
+O fechamento de caixa possui trava transacional a nível de banco (`SELECT FOR UPDATE`), garantindo consistência matemática entre as vendas e movimentações físicas (sangrias/suprimentos) e detectando automaticamente eventuais quebras ou sobras de caixa.
+
 ---
 
 ## 🧳 A Stack Técnica
@@ -56,68 +59,50 @@ Com autenticação **JWT**, as credenciais decodificadas no token definem não a
 
 ---
 
-## 🗺️ O Mapa de Desenvolvimento (Sprints)
+## 🗺️ Mapa de Desenvolvimento do MVP (Concluído 🎉)
 
-O projeto está estruturado em entregáveis incrementais baseados no MVP:
+O projeto seguiu entregáveis incrementais divididos em sprints:
 
-```mermaid
-gantt
-    title Planejamento de Sprints - MVP
-    dateFormat  YYYY-MM-DD
-    section Backend
-    Sprint 0 - Fundação (Prisma + Auth JWT)    :active, s0, 2026-07-21, 5d
-    section Mobile
-    Sprint 1 - Login & Navegação Condicional   : s1, after s0, 4d
-    Sprint 2 - Vendas & Histórico Funcionária : s2, after s1, 5d
-    section Integração
-    Sprint 3 - Tempo Real (WebSockets & Push)  : s3, after s2, 5d
-    section Analítico
-    Sprint 4 - Dashboard da Dona               : s4, after s3, 4d
-    Sprint 5 - Caixa do Dia                    : s5, after s4, 3d
-    Sprint 6 - Relatório Mensal & Fechamento   : s6, after s5, 4d
-```
+- **Sprint 0 — Fundação (NestJS + Docker + Prisma)**: Setup de banco, tabelas fundamentais e controle RBAC de usuários.
+- **Sprint 1 — Login e Navegação Mobile**: Login do app salvando JWT em SecureStore e direcionando dinamicamente por cargo.
+- **Sprint 2 — Registro de Venda (lado Funcionária)**: Carrinho de compras reativo, catálogo de produtos, histórico local e envio de vendas.
+- **Sprint 3 — Tempo Real**: WebSockets integrados para avisar a dona em tempo real de novas vendas, notificações push Expo e fila offline para conciliação.
+- **Sprint 4 — Dashboard da Dona**: KPIs diários dinâmicos de faturamento, ticket médio e gráfico intradia atualizados automaticamente por sockets.
+- **Sprint 5 — Caixa do Dia**: Fluxo completo de caixa por filial (abertura, sangria, suprimento e fechamento com conciliação física).
+- **Sprint 6 — Relatório Mensal & Fechamento**: Comparativo percentual com o mês anterior (tratando fallback nulo para primeiro mês de uso) e gráfico diário com rolagem lateral responsiva.
 
 ---
 
-## ⚙️ Como Executar o Projeto (Pós-Sprint 0)
+## ⚙️ Como Executar o Projeto
 
-### Requisitos Mínimos
-- Node.js (v18+)
-- Docker e Docker Compose
-- Expo Go instalado no smartphone (para testar o mobile)
+A execução local de todos os serviços (Banco, API e App Mobile) está unificada em um único arquivo de orquestração Docker:
+
+### Pré-requisitos
+- Docker Desktop instalado e rodando.
 
 ### Passo a Passo
 
-1. **Clonar os repositórios:**
+1. **Subir e construir todos os serviços:**
+   Na pasta raiz do projeto, execute o seguinte comando no terminal:
    ```bash
-   git clone https://github.com/seu-usuario/erp-semijoias-api.git
-   git clone https://github.com/seu-usuario/erp-semijoias-app.git
+   docker compose up --build
    ```
 
-2. **Configurar e iniciar o Backend:**
-   ```bash
-   cd erp-semijoias-api
-   npm install
-   # Sobe o banco PostgreSQL via Docker
-   docker compose up -d
-   # Executa migrations e insere os dados de teste (Seed)
-   npx prisma migrate dev
-   npm run seed
-   # Inicia a API local em modo de desenvolvimento
-   npm run start:dev
-   ```
+2. **Serviços Ativados:**
+   - **Frontend (Expo Web)**: Disponível em [http://localhost:8081](http://localhost:8081)
+   - **Backend API (NestJS)**: Disponível na porta [http://localhost:3000](http://localhost:3000)
+   - **Banco (Postgres)**: Rodando internamente na porta local `5433` (com seeds e migrations aplicadas automaticamente).
 
-3. **Configurar e iniciar o Mobile:**
-   ```bash
-   cd ../erp-semijoias-app
-   npm install
-   # Inicia o servidor Expo Metro Bundler
-   npx expo start
-   ```
+3. **Contas de Teste Integradas no Seed:**
+   - **Perfil Dona (Acesso Total):**
+     - **E-mail:** `dona@adorne.com`
+     - **Senha:** `AdorneDona123`
+   - **Perfil Funcionária:**
+     - **E-mail:** `func@adorne.com`
+     - **Senha:** `AdorneFunc123`
 
 ---
 
 ## 👥 Autor
 
 - **Jonas Ferreira Silva** - *Idealizador & Desenvolvedor Full Stack*
-- Contato / LinkedIn: [Adicione seu link de preferência]
