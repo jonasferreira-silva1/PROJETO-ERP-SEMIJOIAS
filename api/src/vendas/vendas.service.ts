@@ -120,7 +120,10 @@ export class VendasService {
       let valorTotal = 0;
       const itemsToCreate = [];
 
-      for (const item of itens) {
+      // Ordena os itens pelo produtoId de forma ascendente para evitar deadlocks
+      const sortedItens = [...itens].sort((a, b) => a.produtoId - b.produtoId);
+
+      for (const item of sortedItens) {
         // Bloqueia a linha do produto selecionado no PostgreSQL para prevenir race conditions
         const produtos: Produto[] = await tx.$queryRaw`
           SELECT * FROM "Produto" 

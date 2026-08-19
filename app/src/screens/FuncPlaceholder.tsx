@@ -14,7 +14,7 @@ import {
 } from 'react-native';
 import { useAuth } from '../context/AuthContext';
 import api from '../services/api';
-import * as SecureStore from '../services/storage';
+import { getLocalItemAsync, setLocalItemAsync, migrateKeyFromSecureToLocal } from '../services/storage';
 import {
   Gem,
   ShoppingCart,
@@ -113,6 +113,9 @@ export default function FuncPlaceholder() {
 
   // Abas
   const [activeTab, setActiveTab] = useState<'venda' | 'produtos' | 'historico' | 'caixa' | 'perfil'>('venda');
+
+  // Modal de confirmação de logout
+  const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
 
   // Catálogo
   const [produtos, setProdutos] = useState<Produto[]>([]);
@@ -213,7 +216,11 @@ export default function FuncPlaceholder() {
 
   const loadPendingSales = async () => {
     try {
-      const stored = await SecureStore.getItemAsync('pendingSales');
+      // 1. Migra dados da fila offline persistidos na versão antiga (SecureStore)
+      await migrateKeyFromSecureToLocal('pendingSales');
+      
+      // 2. Carrega os dados do AsyncStorage não-seguro
+      const stored = await getLocalItemAsync('pendingSales');
       setPendingSales(stored ? JSON.parse(stored) : []);
     } catch (error) {
       console.log('Erro ao carregar fila offline:', error);
@@ -222,7 +229,8 @@ export default function FuncPlaceholder() {
 
   const savePendingSales = async (sales: PendingSale[]) => {
     try {
-      await SecureStore.setItemAsync('pendingSales', JSON.stringify(sales));
+      // Salva no AsyncStorage não-seguro
+      await setLocalItemAsync('pendingSales', JSON.stringify(sales));
       setPendingSales(sales);
     } catch (error) {
       console.log('Erro ao salvar fila offline:', error);
@@ -458,7 +466,20 @@ export default function FuncPlaceholder() {
 
   // Utils
   const formatCurrency = (val: number) => `R$ ${val.toFixed(2).replace('.', ',')}`;
-  const formatDate = (iso: string) => { const d = new Date(iso); return `${d.toLocaleDateString('pt-BR')} às ${d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}`; };
+  const formatDate = (iso: string) => {
+    try {
+      const d = new Date(iso);
+      if (isNaN(d.getTime())) return 'Data inválida';
+      const day = String(d.getDate()).padStart(2, '0');
+      const month = String(d.getMonth() + 1).padStart(2, '0');
+      const year = d.getFullYear();
+      const hours = String(d.getHours()).padStart(2, '0');
+      const minutes = String(d.getMinutes()).padStart(2, '0');
+      return `${day}/${month}/${year} às ${hours}:${minutes}`;
+    } catch (e) {
+      return 'Data inválida';
+    }
+  };
 
 
   // Renders
@@ -545,16 +566,17 @@ export default function FuncPlaceholder() {
           </View>
           <View>
             <Text className="text-xs text-adorne-gray font-semibold">Semijoias Adorne</Text>
-            <Text className="text-sm font-bold text-adorne-teal">
-              {user?.nome} <Text className="text-[10px] font-normal text-adorne-gray">({isDona ? 'Dona' : 'Funcionária'})</Text>
-            </Text>
+            <View style={{ flexDirection: 'row', alignItems: 'baseline' }}>
+              <Text className="text-sm font-bold text-adorne-teal">{user?.nome}</Text>
+              <Text className="text-[10px] font-normal text-adorne-gray ml-1.5">({isDona ? 'Dona' : 'Funcionária'})</Text>
+            </View>
           </View>
         </TouchableOpacity>
         <View className="flex-row items-center">
           <TouchableOpacity onPress={() => setActiveTab('perfil')} className="w-9 h-9 rounded-xl border border-adorne-gold/20 items-center justify-center bg-adorne-background/60 mr-2 active:opacity-75">
             <User size={16} color="#0B3A34" />
           </TouchableOpacity>
-          <TouchableOpacity onPress={logout} className="w-9 h-9 rounded-xl border border-red-100 items-center justify-center bg-red-50/40 active:opacity-75">
+          <TouchableOpacity onPress={() => setShowLogoutConfirm(true)} className="w-9 h-9 rounded-xl border border-red-100 items-center justify-center bg-red-50/40 active:opacity-75">
             <LogOut size={16} color="#EF4444" />
           </TouchableOpacity>
         </View>
@@ -1012,7 +1034,7 @@ export default function FuncPlaceholder() {
             )}
 
             <TouchableOpacity
-              onPress={() => Alert.alert('Sair', 'Tem certeza que deseja sair?', [{ text: 'Cancelar', style: 'cancel' }, { text: 'Sair', style: 'destructive', onPress: logout }])}
+              onPress={() => setShowLogoutConfirm(true)}
               className="bg-red-50 border border-red-200 rounded-2xl p-4 flex-row items-center justify-center active:opacity-90"
             >
               <LogOut size={16} color="#EF4444" />
@@ -1097,6 +1119,35 @@ export default function FuncPlaceholder() {
                   <Text className="text-white font-bold text-sm ml-2">{editingProduto ? 'Salvar Alterações' : 'Cadastrar Peça'}</Text>
                 </>
               )}
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Modal de Confirmação de Logout */}
+      <Modal visible={showLogoutConfirm} animationType="fade" transparent onRequestClose={() => setShowLogoutConfirm(false)}>
+        <View className="flex-1 justify-center items-center bg-black/60 px-8">
+          <View className="bg-white w-full rounded-3xl p-6 border border-adorne-gold/15 shadow-2xl">
+            <View className="items-center mb-4">
+              <View className="w-12 h-12 rounded-full bg-red-50 border border-red-100 items-center justify-center mb-3">
+                <LogOut size={22} color="#EF4444" />
+              </View>
+              <Text className="text-base font-bold text-adorne-text">Encerrar sessão?</Text>
+              <Text className="text-xs text-adorne-gray text-center mt-1">
+                Você será desconectada e precisará fazer login novamente.
+              </Text>
+            </View>
+            <TouchableOpacity
+              onPress={async () => { setShowLogoutConfirm(false); await logout(); }}
+              className="w-full bg-red-600 h-12 rounded-xl items-center justify-center mb-2 active:opacity-90"
+            >
+              <Text className="text-white font-bold text-sm">Sair</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              onPress={() => setShowLogoutConfirm(false)}
+              className="w-full h-12 rounded-xl items-center justify-center border border-adorne-gold/20 bg-adorne-background active:opacity-90"
+            >
+              <Text className="text-adorne-gray font-bold text-sm">Cancelar</Text>
             </TouchableOpacity>
           </View>
         </View>

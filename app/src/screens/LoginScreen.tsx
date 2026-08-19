@@ -1,9 +1,18 @@
 import React, { useState } from 'react';
-import { View, Text, TextInput, TouchableOpacity, ActivityIndicator, KeyboardAvoidingView, Platform, ScrollView, Alert } from 'react-native';
+import {
+  View,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  ActivityIndicator,
+  KeyboardAvoidingView,
+  Platform,
+  ScrollView,
+  Alert,
+} from 'react-native';
 import { useAuth } from '../context/AuthContext';
-import { Gem, Mail, Lock, Eye, EyeOff, Fingerprint } from 'lucide-react-native';
+import { Gem, Mail, Lock, Eye, EyeOff } from 'lucide-react-native';
 
-// Tela de Login com formulário e identidade visual institucional
 export default function LoginScreen() {
   const { login } = useAuth();
   const [email, setEmail] = useState('');
@@ -13,19 +22,17 @@ export default function LoginScreen() {
   const [errorMsg, setErrorMsg] = useState('');
   const [isLoading, setIsLoading] = useState(false);
 
-  // Executa o envio dos dados de login
   const handleLogin = async () => {
     if (!email || !password) {
-      setErrorMsg('Por favor, preencha todos os campos');
+      setErrorMsg('Por favor, preencha todos os campos.');
       return;
     }
     setErrorMsg('');
     setIsLoading(true);
-
     try {
       await login(email, password);
     } catch (err: any) {
-      setErrorMsg(err.message || 'Erro ao conectar à API');
+      setErrorMsg(err.message || 'Erro ao conectar à API.');
     } finally {
       setIsLoading(false);
     }
@@ -34,38 +41,84 @@ export default function LoginScreen() {
   return (
     <KeyboardAvoidingView
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-      className="flex-1 bg-adorne-background"
+      style={{ flex: 1, backgroundColor: '#F4F9F8' }}
     >
-      <ScrollView contentContainerStyle={{ flexGrow: 1 }} keyboardShouldPersistTaps="handled">
-        <View className="flex-1 justify-center items-center px-6 py-12">
-          
-          {/* Logo Circular da Adorne */}
-          <View className="items-center mb-10">
-            <View className="w-28 h-28 rounded-full border-2 border-adorne-gold items-center justify-center bg-white shadow-sm mb-4">
-              <Gem size={40} color="#0B3A34" />
-              <Text className="text-adorne-teal font-serif text-lg tracking-widest mt-1">Adorne</Text>
-              <Text className="text-[8px] text-adorne-gold tracking-[0.25em] font-semibold uppercase">Semijoias</Text>
+      <ScrollView
+        contentContainerStyle={{ flexGrow: 1, justifyContent: 'center' }}
+        keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}
+      >
+        <View style={{ paddingHorizontal: 24, paddingVertical: 40, alignItems: 'center' }}>
+
+          {/* ── Logo ── */}
+          <View style={{ alignItems: 'center', marginBottom: 32 }}>
+            <View style={{
+              width: 96, height: 96,
+              borderRadius: 48,
+              borderWidth: 2,
+              borderColor: '#C5A880',
+              backgroundColor: '#ffffff',
+              alignItems: 'center',
+              justifyContent: 'center',
+              marginBottom: 14,
+              shadowColor: '#0B3A34',
+              shadowOffset: { width: 0, height: 4 },
+              shadowOpacity: 0.08,
+              shadowRadius: 12,
+              elevation: 4,
+            }}>
+              <Gem size={32} color="#0B3A34" />
+              <Text style={{ color: '#0B3A34', fontSize: 14, fontWeight: '700', letterSpacing: 2, marginTop: 4 }}>
+                Adorne
+              </Text>
+              <Text style={{ color: '#C5A880', fontSize: 8, letterSpacing: 3, fontWeight: '600', textTransform: 'uppercase' }}>
+                Semijoias
+              </Text>
             </View>
-            <Text className="text-adorne-teal text-center text-xs tracking-wider italic font-medium">
+            <Text style={{ color: '#0B3A34', fontSize: 12, fontStyle: 'italic', textAlign: 'center', letterSpacing: 0.5 }}>
               Realce sua beleza com brilho e sofisticação
             </Text>
           </View>
 
-          {/* Card do Formulário */}
-          <View className="bg-white w-full max-w-sm rounded-3xl p-6 shadow-md border border-adorne-gold/10">
-            <Text className="text-xl font-bold text-adorne-teal mb-1 text-center">Bem-vinda de volta!</Text>
-            <Text className="text-adorne-gray text-xs mb-6 text-center">Faça login para continuar</Text>
+          {/* ── Card do formulário ── */}
+          <View style={{
+            backgroundColor: '#ffffff',
+            width: '100%',
+            maxWidth: 380,
+            borderRadius: 24,
+            padding: 24,
+            borderWidth: 1,
+            borderColor: 'rgba(197,168,128,0.15)',
+            shadowColor: '#0B3A34',
+            shadowOffset: { width: 0, height: 4 },
+            shadowOpacity: 0.06,
+            shadowRadius: 16,
+            elevation: 4,
+          }}>
 
-            {/* Mensagem de Erro de Validação/API */}
+            <Text style={{ fontSize: 20, fontWeight: '800', color: '#0B3A34', textAlign: 'center', marginBottom: 4 }}>
+              Bem-vinda de volta!
+            </Text>
+            <Text style={{ fontSize: 13, color: '#607371', textAlign: 'center', marginBottom: 24 }}>
+              Faça login para continuar
+            </Text>
+
+            {/* Erro */}
             {errorMsg ? (
-              <View className="bg-red-50 border border-red-200 rounded-xl p-3 mb-4">
-                <Text className="text-red-600 text-xs font-semibold text-center">{errorMsg}</Text>
+              <View style={{ backgroundColor: '#FEF2F2', borderWidth: 1, borderColor: '#FECACA', borderRadius: 12, padding: 12, marginBottom: 16 }}>
+                <Text style={{ color: '#DC2626', fontSize: 12, fontWeight: '600', textAlign: 'center' }}>{errorMsg}</Text>
               </View>
             ) : null}
 
-            {/* Input de Email */}
-            <Text className="text-[10px] font-bold text-adorne-gray uppercase mb-1.5 ml-1">E-mail</Text>
-            <View className="flex-row items-center bg-adorne-background border border-adorne-gold/20 rounded-xl px-3 mb-4">
+            {/* E-mail */}
+            <Text style={{ fontSize: 10, fontWeight: '700', color: '#607371', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 6, marginLeft: 4 }}>
+              E-mail
+            </Text>
+            <View style={{
+              flexDirection: 'row', alignItems: 'center',
+              backgroundColor: '#F4F9F8', borderWidth: 1, borderColor: 'rgba(197,168,128,0.25)',
+              borderRadius: 12, paddingHorizontal: 12, marginBottom: 16,
+            }}>
               <Mail size={16} color="#607371" />
               <TextInput
                 value={email}
@@ -74,13 +127,19 @@ export default function LoginScreen() {
                 placeholderTextColor="#A0B0AE"
                 keyboardType="email-address"
                 autoCapitalize="none"
-                className="flex-1 h-12 ml-2 text-adorne-text text-sm"
+                style={{ flex: 1, height: 48, marginLeft: 8, color: '#0F211F', fontSize: 14 }}
               />
             </View>
 
-            {/* Input de Senha */}
-            <Text className="text-[10px] font-bold text-adorne-gray uppercase mb-1.5 ml-1">Senha</Text>
-            <View className="flex-row items-center bg-adorne-background border border-adorne-gold/20 rounded-xl px-3 mb-4">
+            {/* Senha */}
+            <Text style={{ fontSize: 10, fontWeight: '700', color: '#607371', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 6, marginLeft: 4 }}>
+              Senha
+            </Text>
+            <View style={{
+              flexDirection: 'row', alignItems: 'center',
+              backgroundColor: '#F4F9F8', borderWidth: 1, borderColor: 'rgba(197,168,128,0.25)',
+              borderRadius: 12, paddingHorizontal: 12, marginBottom: 20,
+            }}>
               <Lock size={16} color="#607371" />
               <TextInput
                 value={password}
@@ -89,60 +148,78 @@ export default function LoginScreen() {
                 placeholder="••••••••"
                 placeholderTextColor="#A0B0AE"
                 autoCapitalize="none"
-                className="flex-1 h-12 ml-2 text-adorne-text text-sm"
+                style={{ flex: 1, height: 48, marginLeft: 8, color: '#0F211F', fontSize: 14 }}
               />
-              <TouchableOpacity onPress={() => setShowPassword(!showPassword)} className="p-1">
-                {showPassword ? <EyeOff size={16} color="#607371" /> : <Eye size={16} color="#607371" />}
+              <TouchableOpacity onPress={() => setShowPassword(!showPassword)} style={{ padding: 4 }}>
+                {showPassword
+                  ? <EyeOff size={16} color="#607371" />
+                  : <Eye size={16} color="#607371" />
+                }
               </TouchableOpacity>
             </View>
 
-            {/* Checkbox "Lembrar de mim" e link "Esqueci senha" */}
-            <View className="flex-row justify-between items-center mb-6">
+            {/* Lembrar de mim + Esqueci senha — cada um na sua linha em telas pequenas */}
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 8, marginBottom: 24 }}>
               <TouchableOpacity
                 onPress={() => setRememberMe(!rememberMe)}
-                className="flex-row items-center"
+                style={{ flexDirection: 'row', alignItems: 'center' }}
               >
-                <View className={`w-4 h-4 rounded border mr-2 items-center justify-center ${rememberMe ? 'bg-adorne-teal border-adorne-teal' : 'border-adorne-gold/40'}`}>
-                  {rememberMe ? <Text className="text-white text-[8px] font-bold">✓</Text> : null}
+                <View style={{
+                  width: 16, height: 16, borderRadius: 4,
+                  borderWidth: 1.5,
+                  borderColor: rememberMe ? '#0B3A34' : 'rgba(197,168,128,0.5)',
+                  backgroundColor: rememberMe ? '#0B3A34' : 'transparent',
+                  alignItems: 'center', justifyContent: 'center',
+                  marginRight: 8,
+                }}>
+                  {rememberMe && <Text style={{ color: '#fff', fontSize: 9, fontWeight: '800' }}>✓</Text>}
                 </View>
-                <Text className="text-xs text-adorne-gray">Lembrar de mim</Text>
+                <Text style={{ fontSize: 12, color: '#607371' }}>Lembrar de mim</Text>
               </TouchableOpacity>
-              <TouchableOpacity onPress={() => Alert.alert('Recuperação de Senha', 'Funcionalidade em desenvolvimento. Por favor, solicite a redefinição de sua senha ao administrador da sua loja.')}>
-                <Text className="text-xs text-adorne-teal font-semibold">Esqueci minha senha</Text>
+
+              <TouchableOpacity onPress={() => Alert.alert('Recuperação de Senha', 'Solicite a redefinição ao administrador da sua loja.')}>
+                <Text style={{ fontSize: 12, color: '#0B3A34', fontWeight: '700' }}>Esqueci minha senha</Text>
               </TouchableOpacity>
             </View>
 
-            {/* Botão de Entrar */}
+            {/* Botão Entrar */}
             <TouchableOpacity
               onPress={handleLogin}
               disabled={isLoading}
-              className="w-full bg-adorne-teal h-12 rounded-xl items-center justify-center active:opacity-90 shadow-sm"
+              style={{
+                backgroundColor: '#0B3A34',
+                height: 52,
+                borderRadius: 14,
+                alignItems: 'center',
+                justifyContent: 'center',
+                shadowColor: '#0B3A34',
+                shadowOffset: { width: 0, height: 4 },
+                shadowOpacity: 0.25,
+                shadowRadius: 8,
+                elevation: 4,
+              }}
+              activeOpacity={0.85}
             >
-              {isLoading ? (
-                <ActivityIndicator color="#ffffff" />
-              ) : (
-                <Text className="text-white font-bold text-sm">Entrar</Text>
-              )}
+              {isLoading
+                ? <ActivityIndicator color="#ffffff" />
+                : <Text style={{ color: '#ffffff', fontWeight: '700', fontSize: 15 }}>Entrar</Text>
+              }
             </TouchableOpacity>
 
-            {/* Link para Criar Conta */}
-            <View className="flex-row justify-center mt-4">
-              <Text className="text-xs text-adorne-gray">Não tem uma conta?</Text>
-              <TouchableOpacity onPress={() => Alert.alert('Criar Conta', 'Para cadastrar sua loja no ERP Semijoias Adorne, entre em contato com a nossa equipe comercial.')}>
-                <Text className="text-xs text-adorne-teal font-bold ml-1">Criar conta</Text>
+            {/* Criar conta */}
+            <View style={{ flexDirection: 'row', justifyContent: 'center', marginTop: 16, alignItems: 'center' }}>
+              <Text style={{ fontSize: 12, color: '#607371' }}>Não tem uma conta? </Text>
+              <TouchableOpacity onPress={() => Alert.alert('Criar Conta', 'Para cadastrar sua loja, entre em contato com nossa equipe comercial.')}>
+                <Text style={{ fontSize: 12, color: '#0B3A34', fontWeight: '800' }}>Criar conta</Text>
               </TouchableOpacity>
             </View>
+
           </View>
 
-          {/* Opção Biométrica */}
-          <View className="items-center mt-8">
-            <TouchableOpacity className="w-12 h-12 rounded-full border border-adorne-gold/30 items-center justify-center bg-white shadow-sm mb-2 active:opacity-90">
-              <Fingerprint size={24} color="#0B3A34" />
-            </TouchableOpacity>
-            <Text className="text-[10px] text-adorne-gray tracking-wider">
-              Segurança e proteção para você
-            </Text>
-          </View>
+          {/* Rodapé discreto */}
+          <Text style={{ marginTop: 32, fontSize: 10, color: '#A0B0AE', letterSpacing: 0.5, textAlign: 'center' }}>
+            Semijoias Adorne © {new Date().getFullYear()}
+          </Text>
 
         </View>
       </ScrollView>

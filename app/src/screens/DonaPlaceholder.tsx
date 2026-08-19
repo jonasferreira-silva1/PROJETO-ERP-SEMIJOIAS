@@ -8,7 +8,8 @@ import {
   Platform, 
   Alert,
   ScrollView,
-  Modal
+  Modal,
+  TextInput,
 } from 'react-native';
 import { useAuth } from '../context/AuthContext';
 import * as SecureStore from '../services/storage';
@@ -40,7 +41,6 @@ import {
   Tag,
   Package,
 } from 'lucide-react-native';
-import { TextInput } from 'react-native';
 
 // Interface para os itens do gráfico de faturamento
 interface GraficoItem {
@@ -74,6 +74,9 @@ export default function DonaPlaceholder() {
   
   // Controle de Abas
   const [activeTab, setActiveTab] = useState<'dashboard' | 'relatorios' | 'perfil'>('dashboard');
+
+  // Modal de confirmação de logout
+  const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
 
   // Controle de Período Selecionado
   const [periodo, setPeriodo] = useState<'hoje' | 'ontem' | '7dias'>('hoje');
@@ -224,6 +227,9 @@ export default function DonaPlaceholder() {
     if (activeTab === 'relatorios') {
       loadReportData();
     }
+    if (activeTab === 'perfil') {
+      loadProdutos();
+    }
   }, [activeTab, reportMes, reportAno]);
   const loadReportData = async () => {
     setIsLoadingReport(true);
@@ -296,10 +302,20 @@ export default function DonaPlaceholder() {
   };
 
   const formatDate = (isoString: string) => {
-    const d = new Date(isoString);
-    const dateStr = d.toLocaleDateString('pt-BR');
-    const timeStr = d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
-    return `${dateStr} às ${timeStr}`;
+    try {
+      const d = new Date(isoString);
+      if (isNaN(d.getTime())) return 'Data inválida';
+      
+      const day = String(d.getDate()).padStart(2, '0');
+      const month = String(d.getMonth() + 1).padStart(2, '0');
+      const year = d.getFullYear();
+      const hours = String(d.getHours()).padStart(2, '0');
+      const minutes = String(d.getMinutes()).padStart(2, '0');
+      
+      return `${day}/${month}/${year} às ${hours}:${minutes}`;
+    } catch (e) {
+      return 'Data inválida';
+    }
   };
 
   // ── Gestão de Produtos ──────────────────────────────────────────────────────
@@ -451,7 +467,10 @@ export default function DonaPlaceholder() {
           </View>
           <View>
             <Text className="text-xs text-adorne-gray font-semibold">Semijoias Adorne</Text>
-            <Text className="text-sm font-bold text-adorne-teal">{user?.nome} <Text className="text-[10px] font-normal text-adorne-gray">(Dona)</Text></Text>
+            <View style={{ flexDirection: 'row', alignItems: 'baseline' }}>
+              <Text className="text-sm font-bold text-adorne-teal">{user?.nome}</Text>
+              <Text className="text-[10px] font-normal text-adorne-gray ml-1.5">(Dona)</Text>
+            </View>
           </View>
         </TouchableOpacity>
         <View className="flex-row items-center">
@@ -459,7 +478,7 @@ export default function DonaPlaceholder() {
             <User size={16} color="#0B3A34" />
           </TouchableOpacity>
           <TouchableOpacity 
-            onPress={logout}
+            onPress={() => setShowLogoutConfirm(true)}
             className="w-9 h-9 rounded-xl border border-red-100 items-center justify-center bg-red-50/40 active:opacity-75"
           >
             <LogOut size={16} color="#EF4444" />
@@ -474,7 +493,15 @@ export default function DonaPlaceholder() {
           {/* Painel de Status */}
           <View className="px-6 pt-4 flex-row items-center justify-between">
             <View className="flex-row items-center">
-              <View className={`w-2.5 h-2.5 rounded-full mr-2 ${isConnected ? 'bg-emerald-500 animate-pulse' : 'bg-red-500'}`} />
+              <View 
+                style={{
+                  width: 10,
+                  height: 10,
+                  borderRadius: 5,
+                  marginRight: 8,
+                  backgroundColor: isConnected ? '#10B981' : '#EF4444',
+                }} 
+              />
               <Text className="text-xs text-adorne-gray font-bold">
                 {isConnected ? 'Canal de tempo real ativo' : 'Reconectando canal...'}
               </Text>
@@ -733,7 +760,7 @@ export default function DonaPlaceholder() {
                     )}
                   </View>
                   <Text className="text-[9px] font-bold text-adorne-gray uppercase tracking-wider">Comparação Mês Ant.</Text>
-                  {reportData.variacaoPercentual === null ? (
+                  {reportData.variacaoPercentual == null ? (
                     <Text className="text-[10px] font-bold text-adorne-gray/70 italic mt-1">Sem dados do mês anterior</Text>
                   ) : (
                     <Text className={`text-base font-black mt-1 ${reportData.variacaoPercentual >= 0 ? 'text-emerald-600' : 'text-red-500'}`}>
@@ -886,8 +913,90 @@ export default function DonaPlaceholder() {
               </TouchableOpacity>
             </View>
 
+            {/* ── Gerenciar Peças ── */}
+            <View className="bg-white border border-adorne-gold/15 rounded-3xl p-5 shadow-sm mb-4">
+              <View className="flex-row justify-between items-center mb-4 pb-2 border-b border-adorne-background">
+                <Text className="text-xs font-bold text-adorne-teal uppercase tracking-wider">💎 Gerenciar Peças</Text>
+                <TouchableOpacity
+                  onPress={() => {
+                    setEditingProduto(null);
+                    setFormNome(''); setFormCategoria('Brincos'); setFormPreco(''); setFormEstoque('');
+                    setIsProdutoModalVisible(true);
+                  }}
+                  className="flex-row items-center bg-adorne-teal px-3 py-1.5 rounded-xl active:opacity-90"
+                >
+                  <Plus size={13} color="#ffffff" />
+                  <Text className="text-white text-[11px] font-bold ml-1">Nova Peça</Text>
+                </TouchableOpacity>
+              </View>
+
+              {isLoadingProdutos ? (
+                <View className="py-8 items-center"><ActivityIndicator size="small" color="#0B3A34" /></View>
+              ) : produtos.length === 0 ? (
+                <View className="py-8 items-center">
+                  <Package size={32} color="#C5A880" />
+                  <Text className="text-adorne-gray text-xs text-center mt-2 font-semibold">Nenhuma peça cadastrada</Text>
+                  <TouchableOpacity
+                    onPress={() => { setEditingProduto(null); setFormNome(''); setFormCategoria('Brincos'); setFormPreco(''); setFormEstoque(''); setIsProdutoModalVisible(true); }}
+                    className="mt-3 bg-adorne-teal px-4 py-2 rounded-xl"
+                  >
+                    <Text className="text-white text-xs font-bold">Cadastrar Primeira Peça</Text>
+                  </TouchableOpacity>
+                </View>
+              ) : (
+                <>
+                  {produtos.map((produto, idx) => (
+                    <View key={produto.id} className={`flex-row items-center justify-between py-3 ${idx < produtos.length - 1 ? 'border-b border-adorne-background' : ''}`}>
+                      <View className="flex-1 pr-3">
+                        <Text className="text-xs font-bold text-adorne-text" numberOfLines={1}>{produto.nome}</Text>
+                        <View className="flex-row items-center mt-0.5">
+                          <Tag size={9} color="#C5A880" />
+                          <Text className="text-[9px] text-adorne-gray ml-1">{produto.categoria}</Text>
+                          <Text className="text-[9px] text-adorne-gray mx-1">·</Text>
+                          <Text className="text-[9px] font-bold text-adorne-teal">R$ {produto.preco.toFixed(2).replace('.', ',')}</Text>
+                        </View>
+                      </View>
+                      <View className="flex-row items-center">
+                        <View className={`px-2 py-0.5 rounded-full mr-2 ${produto.estoque <= 0 ? 'bg-red-50' : 'bg-emerald-50'}`}>
+                          <Text className={`text-[9px] font-bold ${produto.estoque <= 0 ? 'text-red-600' : 'text-emerald-700'}`}>{produto.estoque} un.</Text>
+                        </View>
+                        <TouchableOpacity
+                          onPress={() => {
+                            setEditingProduto(produto);
+                            setFormNome(produto.nome);
+                            setFormCategoria(produto.categoria);
+                            setFormPreco(produto.preco.toString().replace('.', ','));
+                            setFormEstoque(produto.estoque.toString());
+                            setIsProdutoModalVisible(true);
+                          }}
+                          className="w-7 h-7 rounded-lg bg-adorne-background border border-adorne-gold/20 items-center justify-center mr-1"
+                        >
+                          <Edit3 size={12} color="#0B3A34" />
+                        </TouchableOpacity>
+                        <TouchableOpacity
+                          onPress={() => Alert.alert('Excluir Peça', `Excluir "${produto.nome}"? Esta ação não pode ser desfeita.`, [
+                            { text: 'Cancelar', style: 'cancel' },
+                            { text: 'Excluir', style: 'destructive', onPress: async () => {
+                              try { await api.delete(`/produtos/${produto.id}`); loadProdutos(); }
+                              catch (e: any) { Alert.alert('Erro', e.response?.data?.message || 'Erro ao excluir.'); }
+                            }},
+                          ])}
+                          className="w-7 h-7 rounded-lg bg-red-50 border border-red-100 items-center justify-center"
+                        >
+                          <Trash2 size={12} color="#EF4444" />
+                        </TouchableOpacity>
+                      </View>
+                    </View>
+                  ))}
+                  <TouchableOpacity onPress={loadProdutos} className="mt-3 pt-3 border-t border-adorne-background flex-row items-center justify-center">
+                    <Text className="text-[10px] text-adorne-gray font-bold">↻  Atualizar lista</Text>
+                  </TouchableOpacity>
+                </>
+              )}
+            </View>
+
             <TouchableOpacity
-              onPress={() => Alert.alert('Sair', 'Tem certeza que deseja sair?', [{ text: 'Cancelar', style: 'cancel' }, { text: 'Sair', style: 'destructive', onPress: logout }])}
+              onPress={() => setShowLogoutConfirm(true)}
               className="bg-red-50 border border-red-200 rounded-2xl p-4 flex-row items-center justify-center active:opacity-90"
             >
               <LogOut size={16} color="#EF4444" />
@@ -897,6 +1006,119 @@ export default function DonaPlaceholder() {
           </View>
         </ScrollView>
       )}
+
+      {/* Modal de Confirmação de Logout */}
+      <Modal visible={showLogoutConfirm} animationType="fade" transparent onRequestClose={() => setShowLogoutConfirm(false)}>
+        <View className="flex-1 justify-center items-center bg-black/60 px-8">
+          <View className="bg-white w-full rounded-3xl p-6 border border-adorne-gold/15 shadow-2xl">
+            <View className="items-center mb-4">
+              <View className="w-12 h-12 rounded-full bg-red-50 border border-red-100 items-center justify-center mb-3">
+                <LogOut size={22} color="#EF4444" />
+              </View>
+              <Text className="text-base font-bold text-adorne-text">Encerrar sessão?</Text>
+              <Text className="text-xs text-adorne-gray text-center mt-1">
+                Você será desconectado e precisará fazer login novamente.
+              </Text>
+            </View>
+            <TouchableOpacity
+              onPress={async () => { setShowLogoutConfirm(false); await logout(); }}
+              className="w-full bg-red-600 h-12 rounded-xl items-center justify-center mb-2 active:opacity-90"
+            >
+              <Text className="text-white font-bold text-sm">Sair</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              onPress={() => setShowLogoutConfirm(false)}
+              className="w-full h-12 rounded-xl items-center justify-center border border-adorne-gold/20 bg-adorne-background active:opacity-90"
+            >
+              <Text className="text-adorne-gray font-bold text-sm">Cancelar</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Modal Criar / Editar Produto */}      <Modal visible={isProdutoModalVisible} animationType="slide" transparent onRequestClose={() => setIsProdutoModalVisible(false)}>
+        <View className="flex-1 justify-end bg-black/50">
+          <View className="bg-white rounded-t-3xl p-6" style={{ paddingBottom: Platform.OS === 'ios' ? 34 : 24 }}>
+            <View className="flex-row justify-between items-center mb-5">
+              <Text className="text-base font-bold text-adorne-teal">{editingProduto ? '✏️ Editar Peça' : '➕ Nova Peça'}</Text>
+              <TouchableOpacity onPress={() => setIsProdutoModalVisible(false)} className="w-8 h-8 rounded-full bg-adorne-background items-center justify-center">
+                <X size={16} color="#607371" />
+              </TouchableOpacity>
+            </View>
+
+            <Text className="text-[10px] font-bold text-adorne-gray uppercase mb-1.5 ml-1">Nome da Peça *</Text>
+            <View className="flex-row items-center bg-adorne-background border border-adorne-gold/20 rounded-xl px-3 mb-4">
+              <Gem size={16} color="#C5A880" />
+              <TextInput
+                value={formNome}
+                onChangeText={setFormNome}
+                placeholder="Ex: Anel Riviera Zircônia"
+                placeholderTextColor="#A0B0AE"
+                className="flex-1 h-12 ml-2 text-adorne-text text-sm"
+              />
+            </View>
+
+            <Text className="text-[10px] font-bold text-adorne-gray uppercase mb-2 ml-1">Categoria *</Text>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} className="mb-4 flex-grow-0">
+              <View className="flex-row">
+                {['Brincos', 'Colares', 'Anéis', 'Pulseiras', 'Outros'].map(cat => (
+                  <TouchableOpacity
+                    key={cat}
+                    onPress={() => setFormCategoria(cat)}
+                    className={`px-4 py-2 rounded-full mr-2 border ${formCategoria === cat ? 'bg-adorne-teal border-adorne-teal' : 'bg-white border-adorne-gold/20'}`}
+                  >
+                    <Text className={`text-xs font-bold ${formCategoria === cat ? 'text-white' : 'text-adorne-gray'}`}>{cat}</Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            </ScrollView>
+
+            <View className="flex-row mb-5">
+              <View className="flex-1 mr-2">
+                <Text className="text-[10px] font-bold text-adorne-gray uppercase mb-1.5 ml-1">Preço (R$) *</Text>
+                <View className="flex-row items-center bg-adorne-background border border-adorne-gold/20 rounded-xl px-3">
+                  <Text className="text-sm font-bold text-adorne-teal">R$</Text>
+                  <TextInput
+                    value={formPreco}
+                    onChangeText={setFormPreco}
+                    placeholder="65,00"
+                    placeholderTextColor="#A0B0AE"
+                    keyboardType="numeric"
+                    className="flex-1 h-11 ml-2 text-adorne-text font-bold text-sm"
+                  />
+                </View>
+              </View>
+              <View className="flex-1 ml-2">
+                <Text className="text-[10px] font-bold text-adorne-gray uppercase mb-1.5 ml-1">Estoque (un.) *</Text>
+                <View className="flex-row items-center bg-adorne-background border border-adorne-gold/20 rounded-xl px-3">
+                  <Hash size={14} color="#607371" />
+                  <TextInput
+                    value={formEstoque}
+                    onChangeText={setFormEstoque}
+                    placeholder="20"
+                    placeholderTextColor="#A0B0AE"
+                    keyboardType="numeric"
+                    className="flex-1 h-11 ml-2 text-adorne-text font-bold text-sm"
+                  />
+                </View>
+              </View>
+            </View>
+
+            <TouchableOpacity
+              onPress={handleSaveProduto}
+              disabled={isSavingProduto}
+              className="w-full bg-adorne-teal rounded-2xl h-13 items-center justify-center flex-row shadow-sm active:opacity-90"
+            >
+              {isSavingProduto ? <ActivityIndicator color="#ffffff" /> : (
+                <>
+                  <Check size={16} color="#ffffff" />
+                  <Text className="text-white font-bold text-sm ml-2">{editingProduto ? 'Salvar Alterações' : 'Cadastrar Peça'}</Text>
+                </>
+              )}
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
 
       {/* Modal de Detalhes da Venda */}
       <Modal
